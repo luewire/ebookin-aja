@@ -1,65 +1,488 @@
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface Ebook {
+  id: string;
+  title: string;
+  author: string;
+  cover: string;
+  category: string;
+}
 
 export default function Home() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [trendingBooks, setTrendingBooks] = useState<Ebook[]>([]);
+  const [lastRead, setLastRead] = useState<Ebook[]>([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Load dark mode preference from localStorage
+    const savedMode = localStorage.getItem('darkMode') === 'true';
+    setIsDarkMode(savedMode);
+    if (savedMode) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      fetchBooks();
+    }
+  }, [user, loading, router]);
+
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', String(newMode));
+    if (newMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  const fetchBooks = async () => {
+    try {
+      const { data } = await supabase
+        .from('ebooks')
+        .select('*')
+        .limit(10);
+      
+      if (data) {
+        setTrendingBooks(data.slice(0, 6));
+        setLastRead(data.slice(0, 5));
+      }
+    } catch (error) {
+      console.error('Error fetching books:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
+      {/* Header */}
+      <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors duration-300">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-8">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white font-bold text-sm">E</div>
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100">Ebookin</span>
+              </Link>
+              <div className="hidden md:flex items-center gap-6">
+                <Link href="/" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Library</Link>
+                <Link href="/trending" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Browse</Link>
+                <Link href="/profile" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Wishlist</Link>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:block relative">
+                <input
+                  type="text"
+                  placeholder="Search books..."
+                  className="w-64 rounded-full border-none bg-gray-100 dark:bg-slate-800 px-4 py-2 pl-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <button 
+                onClick={toggleDarkMode}
+                className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300"
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {isDarkMode ? (
+                  <svg className="h-5 w-5 text-yellow-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-gray-600 dark:text-gray-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
+              {user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 ring-2 ring-transparent hover:ring-blue-400 dark:hover:ring-blue-500"
+                  >
+                    {user.user_metadata?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                  </button>
+                  {showProfileMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10 animate-fade-in" onClick={() => setShowProfileMenu(false)}></div>
+                      <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-slate-800 py-2 shadow-xl border border-gray-200 dark:border-slate-700 z-20 animate-slide-down origin-top-right backdrop-blur-sm">
+                        {user.email === 'admin@admin.com' && (
+                          <Link
+                            href="/admin"
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
+                            onClick={() => setShowProfileMenu(false)}
+                          >
+                            <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Admin Panel
+                          </Link>
+                        )}
+                        <Link
+                          href="/profile"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          Profile
+                        </Link>
+                        <button
+                          onClick={async () => {
+                            await supabase.auth.signOut();
+                            setShowProfileMenu(false);
+                            window.location.href = '/';
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 hover:pl-5 transition-all duration-200 group"
+                        >
+                          <svg className="h-4 w-4 group-hover:scale-110 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          Logout
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </nav>
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Hero Banner */}
+        <div className="relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-10 text-white shadow-2xl transition-all duration-300">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-blue-500/20 to-transparent"></div>
+          </div>
+          <div className="relative z-10 max-w-2xl">
+            <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-4">
+              Editor's Choice
+            </span>
+            <h2 className="mb-2 text-4xl font-bold leading-tight lg:text-5xl">
+              Beyond the Horizon:
+            </h2>
+            <h3 className="mb-4 text-3xl font-bold italic text-blue-400 lg:text-4xl">
+              Journey Through Time
+            </h3>
+            <p className="mb-6 text-base leading-relaxed text-gray-300">
+              Discover the epic conclusion to the best-selling trilogy.<br/>
+              Dive into a world where reality meets legend, now available<br/>
+              exclusively for Ebookin Premium readers.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/register"
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold hover:bg-blue-700"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                Read Now
+              </Link>
+              <button className="rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold backdrop-blur-sm hover:bg-white/20">
+                Add to List
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Last Read Section */}
+        <section className="mb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
+              <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Last Read
+            </h3>
+            <Link href="/profile" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              View all activity
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {lastRead.length > 0 ? lastRead.map((book) => {
+              const progress = Math.floor(Math.random() * 40) + 30;
+              return (
+                <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+                  <div className="relative overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md">
+                    <div className="absolute right-2 top-2 z-10 rounded bg-white/95 dark:bg-slate-800/95 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 shadow-sm backdrop-blur transition-colors">
+                      {progress}% READ
+                    </div>
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      {book.cover ? (
+                        <img src={book.cover} alt={book.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-gray-400">
+                          <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                      <div 
+                        className="h-full bg-blue-600 transition-all" 
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900">{book.title}</h4>
+                  <p className="text-xs text-gray-600">{book.author}</p>
+                </Link>
+              );
+            }) : (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="group">
+                  <div className="relative overflow-hidden rounded-lg bg-white shadow-sm">
+                    <div className="aspect-[3/4] w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="mt-1 h-3 bg-gray-100 rounded w-1/2"></div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Trending Books Section */}
+        <section className="mb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
+              <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Trending Books
+            </h3>
+            <Link href="/trending" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              View all trending
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {trendingBooks.length > 0 ? trendingBooks.map((book) => {
+              const rating = (Math.random() * 1 + 4).toFixed(1);
+              const reviews = Math.floor(Math.random() * 5000) + 500;
+              return (
+                <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+                  <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-transform hover:scale-105 hover:shadow-md">
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                      {book.cover ? (
+                        <img src={book.cover} alt={book.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-gray-400">
+                          <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900">{book.title}</h4>
+                  <p className="text-xs text-gray-600">{book.author}</p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <svg className="h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <span className="text-xs font-medium text-gray-700">{rating}</span>
+                    <span className="text-xs text-gray-500">({reviews})</span>
+                  </div>
+                </Link>
+              );
+            }) : (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i}>
+                  <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+                    <div className="aspect-[3/4] w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="mt-1 h-3 bg-gray-100 rounded w-1/2"></div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Recommended Section */}
+        <section className="mb-12">
+          <div className="mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">Recommended for you</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">Based on your recent reads in Philosophy and Sci-Fi</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {(trendingBooks.length > 0 ? trendingBooks.slice(0, 3) : Array.from({ length: 3 })).map((book: any, index) => (
+              <div key={book?.id || index} className="flex gap-4 rounded-lg bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-slate-700 transition-colors">
+                  {book?.cover ? (
+                    <img src={book.cover} alt={book.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-gray-400">
+                      <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 transition-colors">{book?.title || 'Sample Book Title'}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{book?.author || 'Author Name'}</p>
+                  <div className="mt-1 flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg key={star} className="h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <Link
+                    href={book?.id ? `/ebooks/${book.id}` : '/register'}
+                    className="mt-auto text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                  >
+                    GET BOOK →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Categories Section */}
+        <section className="mb-12">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              Explore by Category
+            </h3>
+            <Link href="/profile" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              View all categories
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { name: 'Fiction', icon: '✨', color: 'from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400', borderColor: 'border-blue-100/50 dark:border-blue-800/50' },
+              { name: 'Science', icon: '🔬', color: 'from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30', textColor: 'text-green-700 dark:text-green-400', borderColor: 'border-green-100/50 dark:border-green-800/50' },
+              { name: 'History', icon: '🏛️', color: 'from-yellow-50 to-yellow-100 dark:from-yellow-950/30 dark:to-yellow-900/30', textColor: 'text-yellow-700 dark:text-yellow-400', borderColor: 'border-yellow-100/50 dark:border-yellow-800/50' },
+              { name: 'Mystery', icon: '🔍', color: 'from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30', textColor: 'text-purple-700 dark:text-purple-400', borderColor: 'border-purple-100/50 dark:border-purple-800/50' },
+              { name: 'Fantasy', icon: '👑', color: 'from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/30', textColor: 'text-pink-700 dark:text-pink-400', borderColor: 'border-pink-100/50 dark:border-pink-800/50' },
+              { name: 'Biography', icon: '👤', color: 'from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30', textColor: 'text-indigo-700 dark:text-indigo-400', borderColor: 'border-indigo-100/50 dark:border-indigo-800/50' },
+              { name: 'Philosophy', icon: '🧠', color: 'from-orange-50 to-orange-100 dark:from-orange-950/30 dark:to-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400', borderColor: 'border-orange-100/50 dark:border-orange-800/50' },
+              { name: 'View All', icon: '⋯', color: 'from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-800', textColor: 'text-gray-700 dark:text-gray-300', borderColor: 'border-gray-200/50 dark:border-slate-700/50' },
+            ].map((category) => (
+              <Link
+                key={category.name}
+                href="/profile"
+                className={`flex flex-col items-center justify-center gap-3 rounded-xl bg-gradient-to-br ${category.color} border ${category.borderColor} p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-md`}
+              >
+                <span className="text-4xl">{category.icon}</span>
+                <span className={`text-sm font-semibold ${category.textColor}`}>{category.name}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          {/* Top Section */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-6">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-lg shadow-md">E</div>
+              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ebookin aja</span>
+            </Link>
+
+            {/* Navigation Links */}
+            <nav className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
+              <Link href="/" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors tracking-wide uppercase">
+                About
+              </Link>
+              <Link href="/" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors tracking-wide uppercase">
+                Privacy Policy
+              </Link>
+              <Link href="/" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors tracking-wide uppercase">
+                Terms of Service
+              </Link>
+              <Link href="/" className="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors tracking-wide uppercase">
+                Contact
+              </Link>
+            </nav>
+
+            {/* Social Media Icons */}
+            <div className="flex items-center gap-4">
+              <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-600 dark:hover:text-pink-500 transition-all duration-200 hover:scale-110">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </Link>
+              <Link href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-400 dark:hover:text-blue-500 transition-all duration-200 hover:scale-110">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                </svg>
+              </Link>
+              <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-500 transition-all duration-200 hover:scale-110">
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </Link>
+            </div>
+          </div>
+
+          {/* Bottom Copyright */}
+          <div className="border-t border-gray-200 dark:border-slate-800 pt-6">
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400 tracking-wider uppercase">
+              © 2026 EBOOKIN AJA. ALL RIGHTS RESERVED.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

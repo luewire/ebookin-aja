@@ -2,6 +2,14 @@
 
 @config "../tailwind.config.ts";
 
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/PlusJakartaSans[wght].woff') format('woff-variations');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #FAFAFA;
   --foreground: #0F172A;
@@ -22,7 +30,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 

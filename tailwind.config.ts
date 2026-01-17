@@ -14,6 +14,9 @@ const config: Config = {
         "background-light": "#FAFAFA",
         "background-dark": "#0F172A",
       },
+      fontFamily: {
+        sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+      },
     },
   },
   plugins: [],

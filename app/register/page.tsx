@@ -94,7 +94,7 @@ export default function RegisterPage() {
       }
 
       setSuccess(true);
-      setTimeout(() => router.push('/login'), 3000);
+      setTimeout(() => router.push('/pricing?redirect=/browse'), 2000);
     } catch (error: any) {
       setError(error.message || 'Failed to register. Please try again.');
       setLoading(false);
@@ -122,13 +122,26 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900 px-4 transition-colors duration-300">
-        <div className="max-w-md rounded-2xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-8 text-center shadow-xl">
-          <div className="mb-4 text-5xl">✓</div>
-          <h3 className="mb-3 text-2xl font-semibold text-green-900 dark:text-green-300">Registration Successful!</h3>
-          <p className="text-base text-green-700 dark:text-green-400">
-            Please check your email to verify your account. Redirecting to login...
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-900 dark:to-slate-800 px-4 transition-colors duration-300">
+        <div className="max-w-md rounded-2xl bg-white dark:bg-slate-800 border-2 border-blue-200 dark:border-blue-800 p-8 text-center shadow-2xl">
+          <div className="mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full animate-bounce">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+          <h3 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">Selamat Datang! 🎉</h3>
+          <p className="text-base text-gray-600 dark:text-gray-400 mb-4">
+            Akun Anda berhasil dibuat. Sekarang pilih paket langganan untuk mulai membaca ribuan e-book...
           </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Redirecting...
+          </div>
         </div>
       </div>
     );

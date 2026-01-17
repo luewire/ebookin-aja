@@ -20,6 +20,7 @@ export default function Home() {
   const [trendingBooks, setTrendingBooks] = useState<Ebook[]>([]);
   const [lastRead, setLastRead] = useState<Ebook[]>([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
@@ -85,11 +86,25 @@ export default function Home() {
               </Link>
               <div className="hidden md:flex items-center gap-6">
                 <Link href="/" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Library</Link>
-                <Link href="/trending" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Browse</Link>
-                <Link href="/profile" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Wishlist</Link>
+                <Link href="/browse" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Browse</Link>
+                <Link href="/readlist" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">My Readlist</Link>
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
+              >
+                {showMobileMenu ? (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
               <div className="hidden sm:block relative">
                 <input
                   type="text"
@@ -102,7 +117,7 @@ export default function Home() {
               </div>
               <button 
                 onClick={toggleDarkMode}
-                className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300"
+                className="hidden md:block rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300"
                 title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
                 {isDarkMode ? (
@@ -116,7 +131,7 @@ export default function Home() {
                 )}
               </button>
               {user ? (
-                <div className="relative">
+                <div className="hidden md:block relative">
                   <button
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 ring-2 ring-transparent hover:ring-blue-400 dark:hover:ring-blue-500"
@@ -127,6 +142,16 @@ export default function Home() {
                     <>
                       <div className="fixed inset-0 z-10 animate-fade-in" onClick={() => setShowProfileMenu(false)}></div>
                       <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-slate-800 py-2 shadow-xl border border-gray-200 dark:border-slate-700 z-20 animate-slide-down origin-top-right backdrop-blur-sm">
+                        <Link
+                          href="/profile"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          Profile
+                        </Link>
                         {user.email === 'admin@admin.com' && (
                           <Link
                             href="/admin"
@@ -141,28 +166,16 @@ export default function Home() {
                           </Link>
                         )}
                         <Link
-                          href="/profile"
+                          href="/profile/edit"
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
                           onClick={() => setShowProfileMenu(false)}
                         >
                           <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
-                          Profile
+                          Settings
                         </Link>
-                        <button
-                          onClick={async () => {
-                            await supabase.auth.signOut();
-                            setShowProfileMenu(false);
-                            window.location.href = '/';
-                          }}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 hover:pl-5 transition-all duration-200 group"
-                        >
-                          <svg className="h-4 w-4 group-hover:scale-110 group-hover:translate-x-0.5 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          Logout
-                        </button>
                       </div>
                     </>
                   )}
@@ -186,6 +199,70 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="md:hidden border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-slide-down">
+            <div className="px-4 py-3 space-y-1">
+              <Link
+                href="/"
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                Library
+              </Link>
+              <Link
+                href="/browse"
+                onClick={() => setShowMobileMenu(false)}
+                className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                Browse
+              </Link>
+              {user && (
+                <>
+                  <Link
+                    href="/readlist"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    My Readlist
+                  </Link>
+                  <Link
+                    href="/profile"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    href="/profile/edit"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    Settings
+                  </Link>
+                </>
+              )}
+              <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-3">
+                <button
+                  onClick={toggleDarkMode}
+                  className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <span>Dark Mode</span>
+                  <div className="relative inline-flex items-center cursor-pointer">
+                    <div className={`w-11 h-6 rounded-full transition-colors ${
+                      isDarkMode ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}>
+                      <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${
+                        isDarkMode ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -290,16 +367,13 @@ export default function Home() {
 
         {/* Trending Books Section */}
         <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6">
             <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
               <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               Trending Books
             </h3>
-            <Link href="/trending" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-              View all trending
-            </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {trendingBooks.length > 0 ? trendingBooks.map((book) => {
@@ -307,12 +381,12 @@ export default function Home() {
               const reviews = Math.floor(Math.random() * 5000) + 500;
               return (
                 <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
-                  <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-transform hover:scale-105 hover:shadow-md">
-                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                  <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-sm transition-transform hover:scale-105 hover:shadow-md">
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600">
                       {book.cover ? (
                         <img src={book.cover} alt={book.title} className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-gray-400">
+                        <div className="flex h-full items-center justify-center text-gray-400 dark:text-gray-500">
                           <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
@@ -320,29 +394,29 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900">{book.title}</h4>
-                  <p className="text-xs text-gray-600">{book.author}</p>
+                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{book.title}</h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{book.author}</p>
                   <div className="mt-1 flex items-center gap-1">
                     <svg className="h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
-                    <span className="text-xs font-medium text-gray-700">{rating}</span>
-                    <span className="text-xs text-gray-500">({reviews})</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{rating}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({reviews})</span>
                   </div>
                 </Link>
               );
             }) : (
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={i}>
-                  <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-                    <div className="aspect-[3/4] w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                    <div className="aspect-[3/4] w-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center">
+                      <svg className="h-16 w-16 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                     </div>
                   </div>
-                  <div className="mt-2 h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="mt-1 h-3 bg-gray-100 rounded w-1/2"></div>
+                  <div className="mt-2 h-4 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
+                  <div className="mt-1 h-3 bg-gray-100 dark:bg-slate-700 rounded w-1/2"></div>
                 </div>
               ))
             )}
@@ -356,7 +430,7 @@ export default function Home() {
             <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">Based on your recent reads in Philosophy and Sci-Fi</p>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {(trendingBooks.length > 0 ? trendingBooks.slice(0, 3) : Array.from({ length: 3 })).map((book: any, index) => (
+            {(lastRead.length > 0 ? lastRead.slice(0, 3) : Array.from({ length: 3 })).map((book: any, index) => (
               <div key={book?.id || index} className="flex gap-4 rounded-lg bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-all duration-300">
                 <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-slate-700 transition-colors">
                   {book?.cover ? (

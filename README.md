@@ -142,6 +142,24 @@ CREATE POLICY "Users can insert their own reading sessions"
 CREATE POLICY "Users can update their own reading sessions"
   ON reading_sessions FOR UPDATE
   USING (auth.uid() = user_id);
+
+-- Create wishlist table
+CREATE TABLE wishlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  ebook_id UUID REFERENCES ebooks(id) ON DELETE CASCADE NOT NULL,
+  status TEXT DEFAULT 'want_to_read' CHECK (status IN ('want_to_read', 'reading', 'finished')),
+  added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, ebook_id)
+);
+
+ALTER TABLE wishlist ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own wishlist"
+  ON wishlist FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 ```
 
 #### 5️⃣ (Opsional) Enable Google OAuth

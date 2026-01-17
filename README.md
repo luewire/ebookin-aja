@@ -219,7 +219,6 @@ ebookin-aja/
 **Nama Proyek:** Ebookin - Platform E-Book Modern  
 **Sekolah:** SMK Telkom Purwokerto  
 **Tahun:** 2024/2025  
-**Pembimbing:** -  
 
 ### 📝 Deskripsi Proyek
 

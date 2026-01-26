@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -40,9 +40,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Get Supabase client
-    const supabase = getSupabase();
 
     // Check if email already exists (case-insensitive)
     const emailLowerCase = email.toLowerCase();

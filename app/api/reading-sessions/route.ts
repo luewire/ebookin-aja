@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 interface CreateSessionBody {
   userId: string;
@@ -23,8 +23,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const supabase = getSupabase();
 
     // Check for existing active session (no end_time)
     const { data: activeSession } = await supabase
@@ -96,8 +94,6 @@ export async function PATCH(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const supabase = getSupabase();
 
     // Find active session (no end_time)
     const { data: session, error: fetchError } = await supabase

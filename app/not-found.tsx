@@ -1,8 +1,25 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 export default function NotFound() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const savedMode = localStorage.getItem('darkMode') === 'true';
+    if (savedMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <main className="grid min-h-screen place-items-center bg-gray-50 dark:bg-slate-900 px-6 py-24 sm:py-32 lg:px-8 transition-colors duration-300">
       <div className="text-center">
@@ -28,4 +45,3 @@ export default function NotFound() {
     </main>
   );
 }
-

@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+import Navbar from '@/components/Navbar';
 
 interface ReadingSession {
   id: string;
@@ -23,10 +25,12 @@ export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const [readingSessions, setReadingSessions] = useState<ReadingSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'completed'>('all');
+  const [profileData, setProfileData] = useState<{
+    username: string | null;
+    bio: string | null;
+    reading_goal: number | null;
+  }>({ username: null, bio: null, reading_goal: null });
   const router = useRouter();
 
   useEffect(() => {
@@ -34,23 +38,21 @@ export default function ProfilePage() {
       router.push('/login');
     } else if (!authLoading && user) {
       fetchReadingSessions();
-      loadDarkMode();
+      fetchProfileData();
     }
   }, [authLoading, user]);
 
-  const loadDarkMode = () => {
-    const savedMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedMode);
-  };
-
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem('darkMode', String(newMode));
-    if (newMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  const fetchProfileData = async () => {
+    try {
+      // Load from user metadata
+      const metadata = user?.user_metadata || {};
+      setProfileData({
+        username: metadata.username || null,
+        bio: metadata.bio || null,
+        reading_goal: metadata.reading_goal || null
+      });
+    } catch (error: any) {
+      console.error('Error fetching profile data:', error);
     }
   };
 
@@ -93,8 +95,31 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+    try {
+      console.log('Profile logout started...');
+      
+      // Sign out with local scope
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      
+      // Clear all auth storage
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase') || key.includes('auth') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      sessionStorage.clear();
+      
+      // Force redirect
+      setTimeout(() => {
+        window.location.replace('/');
+      }, 100);
+    } catch (error) {
+      console.error('Error logging out:', error);
+      window.location.replace('/');
+    }
   };
 
   const getInitials = (email: string) => {
@@ -112,7 +137,7 @@ export default function ProfilePage() {
   });
 
   const completedCount = readingSessions.filter(s => s.progress >= 100).length;
-  const yearGoal = 25;
+  const yearGoal = profileData.reading_goal || 25;
   const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
 
   if (authLoading || loading) {
@@ -125,163 +150,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors">
-      {/* Header Navigation */}
-      <nav className="border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-50 transition-colors">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white font-bold text-sm">E</div>
-              <span className="text-lg font-bold text-gray-900 dark:text-gray-100">Ebookin</span>
-            </Link>
-            
-            <div className="flex items-center gap-2 sm:gap-4">
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
-              >
-                {showMobileMenu ? (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
-
-              <button
-                onClick={toggleDarkMode}
-                className="hidden md:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-200"
-              >
-                {isDarkMode ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                )}
-              </button>
-
-              <div className="hidden md:block relative">
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-bold hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 ring-2 ring-transparent hover:ring-blue-400 dark:hover:ring-blue-500"
-                >
-                  {getInitials(user?.email || '')}
-                </button>
-                {showProfileMenu && (
-                  <>
-                    <div className="fixed inset-0 z-10 animate-fade-in" onClick={() => setShowProfileMenu(false)}></div>
-                    <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-slate-800 py-2 shadow-xl border border-gray-200 dark:border-slate-700 z-20 animate-slide-down origin-top-right backdrop-blur-sm">
-                      <Link
-                        href="/profile"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
-                        <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        Profile
-                      </Link>
-                      {user.email === 'admin@admin.com' && (
-                        <Link
-                          href="/admin"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                          onClick={() => setShowProfileMenu(false)}
-                        >
-                          <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Admin Panel
-                        </Link>
-                      )}
-                      <Link
-                        href="/profile/edit"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
-                        <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Settings
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Mobile Menu */}
-          {showMobileMenu && (
-            <div className="md:hidden border-t border-gray-200 dark:border-slate-800 animate-slide-down">
-              <div className="px-4 py-3 space-y-1">
-            <Link
-              href="/"
-              onClick={() => setShowMobileMenu(false)}
-              className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              Library
-            </Link>
-            <Link
-              href="/browse"
-              onClick={() => setShowMobileMenu(false)}
-              className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              Browse
-            </Link>
-            {user && (
-              <>
-                <Link
-                  href="/readlist"
-                  onClick={() => setShowMobileMenu(false)}
-                  className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  My Readlist
-                </Link>
-                <Link
-                  href="/profile"
-                  onClick={() => setShowMobileMenu(false)}
-                  className="block px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  Profile
-                </Link>
-                <Link
-                  href="/profile/edit"
-                  onClick={() => setShowMobileMenu(false)}
-                  className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  Settings
-                </Link>
-              </>
-            )}
-            <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-3">
-              <button
-                onClick={toggleDarkMode}
-                className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <span>Dark Mode</span>
-                <div className="relative inline-flex items-center cursor-pointer">
-                  <div className={`w-11 h-6 rounded-full transition-colors ${
-                    isDarkMode ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}>
-                    <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${
-                      isDarkMode ? 'translate-x-5' : 'translate-x-0'
-                    }`} />
-                  </div>
-                </div>
-              </button>
-            </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      <Navbar />
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Profile Header */}
@@ -298,14 +167,14 @@ export default function ProfilePage() {
           
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{getUserName()}</h1>
-              <Link href="/profile/edit" className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors w-fit">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{profileData.username || getUserName()}</h1>
+              <Link href="/settings" className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors w-fit">
                 Edit Profile
               </Link>
             </div>
             
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-2xl">
-              Avid reader and enthusiast. Exploring the intersection of literature and human consciousness.
+              {profileData.bio || 'Avid reader and enthusiast. Exploring the intersection of literature and human consciousness.'}
             </p>
             
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
@@ -316,7 +185,7 @@ export default function ProfilePage() {
                 <span>Joined {joinDate}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-gray-900 dark:text-gray-100">2024 Goal: {completedCount} of {yearGoal} books</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">2026 Goal: {completedCount} of {yearGoal} books</span>
                 <div className="h-2 w-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
                   <div 
                     className="h-full bg-blue-600 rounded-full transition-all duration-500"
@@ -447,9 +316,8 @@ export default function ProfilePage() {
                 {/* Top Section */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-6">
                   {/* Logo */}
-                  <Link href="/" className="flex items-center gap-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-lg shadow-md">E</div>
-                    <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ebookin aja</span>
+                  <Link href="/" className="flex items-center group">
+                    <Image src="/logo.svg" alt="Ebookin Logo" width={48} height={48} className="h-12 w-12 invert dark:invert-0 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125 group-hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" priority />
                   </Link>
       
                   {/* Navigation Links */}

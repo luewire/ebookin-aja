@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import Navbar from '@/components/Navbar';
+import useEmblaCarousel from 'embla-carousel-react';
 
 interface Ebook {
   id: string;
@@ -12,6 +15,18 @@ interface Ebook {
   author: string;
   cover: string;
   category: string;
+  status: string;
+  view_count: number;
+}
+
+interface Banner {
+  id: string;
+  title: string;
+  subtitle: string;
+  cta_label: string;
+  cta_link: string;
+  image_url: string;
+  order_position: number;
 }
 
 export default function Home() {
@@ -19,33 +34,50 @@ export default function Home() {
   const router = useRouter();
   const [trendingBooks, setTrendingBooks] = useState<Ebook[]>([]);
   const [lastRead, setLastRead] = useState<Ebook[]>([]);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    // Load dark mode preference from localStorage
-    const savedMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedMode);
-    if (savedMode) {
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, []);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     if (!loading) {
       fetchBooks();
+      fetchBanners();
     }
   }, [user, loading, router]);
 
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem('darkMode', String(newMode));
-    if (newMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const onSelect = () => {
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+    };
+
+    emblaApi.on('select', onSelect);
+    onSelect();
+
+    // Auto-scroll every 5 seconds
+    const autoScroll = setInterval(() => {
+      emblaApi.scrollNext();
+    }, 5000);
+
+    return () => {
+      clearInterval(autoScroll);
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi]);
+
+  const fetchBanners = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('order_position', { ascending: true });
+      
+      if (error) throw error;
+      setBanners(data || []);
+    } catch (error) {
+      console.error('Error fetching banners:', error);
     }
   };
 
@@ -54,6 +86,8 @@ export default function Home() {
       const { data } = await supabase
         .from('ebooks')
         .select('*')
+        .eq('status', 'Published')
+        .order('view_count', { ascending: false })
         .limit(10);
       
       if (data) {
@@ -75,233 +109,109 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 border-b border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors duration-300">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded bg-blue-600 text-white font-bold text-sm">E</div>
-                <span className="text-xl font-bold text-gray-900 dark:text-gray-100">Ebookin</span>
-              </Link>
-              <div className="hidden md:flex items-center gap-6">
-                <Link href="/" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Library</Link>
-                <Link href="/browse" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Browse</Link>
-                <Link href="/readlist" className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">My Readlist</Link>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
-              >
-                {showMobileMenu ? (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
-              <div className="hidden sm:block relative">
-                <input
-                  type="text"
-                  placeholder="Search books..."
-                  className="w-64 rounded-full border-none bg-gray-100 dark:bg-slate-800 px-4 py-2 pl-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-colors"
-                />
-                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <button 
-                onClick={toggleDarkMode}
-                className="hidden md:block rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300"
-                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              >
-                {isDarkMode ? (
-                  <svg className="h-5 w-5 text-yellow-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5 text-gray-600 dark:text-gray-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                )}
-              </button>
-              {user ? (
-                <div className="hidden md:block relative">
-                  <button
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 ring-2 ring-transparent hover:ring-blue-400 dark:hover:ring-blue-500"
-                  >
-                    {user.user_metadata?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
-                  </button>
-                  {showProfileMenu && (
-                    <>
-                      <div className="fixed inset-0 z-10 animate-fade-in" onClick={() => setShowProfileMenu(false)}></div>
-                      <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-slate-800 py-2 shadow-xl border border-gray-200 dark:border-slate-700 z-20 animate-slide-down origin-top-right backdrop-blur-sm">
-                        <Link
-                          href="/profile"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                          onClick={() => setShowProfileMenu(false)}
-                        >
-                          <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          Profile
-                        </Link>
-                        {user.email === 'admin@admin.com' && (
-                          <Link
-                            href="/admin"
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                            onClick={() => setShowProfileMenu(false)}
-                          >
-                            <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Admin Panel
-                          </Link>
-                        )}
-                        <Link
-                          href="/profile/edit"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
-                          onClick={() => setShowProfileMenu(false)}
-                        >
-                          <svg className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          Settings
-                        </Link>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/login"
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors"
-                  >
-                    Sign Up
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      <Navbar />
 
-        {/* Mobile Menu */}
-        {showMobileMenu && (
-          <div className="md:hidden border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-slide-down">
-            <div className="px-4 py-3 space-y-1">
-              <Link
-                href="/"
-                onClick={() => setShowMobileMenu(false)}
-                className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Library
-              </Link>
-              <Link
-                href="/browse"
-                onClick={() => setShowMobileMenu(false)}
-                className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Browse
-              </Link>
-              {user && (
-                <>
-                  <Link
-                    href="/readlist"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    My Readlist
-                  </Link>
-                  <Link
-                    href="/profile"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    href="/profile/edit"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="block px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    Settings
-                  </Link>
-                </>
-              )}
-              <div className="border-t border-gray-200 dark:border-slate-700 pt-3 mt-3">
-                <button
-                  onClick={toggleDarkMode}
-                  className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  <span>Dark Mode</span>
-                  <div className="relative inline-flex items-center cursor-pointer">
-                    <div className={`w-11 h-6 rounded-full transition-colors ${
-                      isDarkMode ? 'bg-blue-600' : 'bg-gray-200'
-                    }`}>
-                      <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform ${
-                        isDarkMode ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Hero Banner Carousel */}
+        {banners.length > 0 ? (
+          <div className="relative mb-12 overflow-hidden rounded-2xl">
+            <div className="overflow-hidden" ref={emblaRef}>
+              <div className="flex">
+                {banners.map((banner) => (
+                  <div key={banner.id} className="relative min-w-0 flex-[0_0_100%]">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-10 text-white shadow-2xl transition-all duration-300">
+                      {/* Background Image */}
+                      {banner.image_url && (
+                        <div className="absolute inset-0">
+                          <img 
+                            src={banner.image_url} 
+                            alt={banner.title}
+                            className="h-full w-full object-cover opacity-30"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/50"></div>
+                        </div>
+                      )}
+                      
+                      {/* Content */}
+                      <div className="relative z-10 max-w-2xl">
+                        <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-4">
+                          Featured
+                        </span>
+                        <h2 className="mb-2 text-4xl font-bold leading-tight lg:text-5xl">
+                          {banner.title}
+                        </h2>
+                        <p className="mb-6 text-xl text-gray-300 leading-relaxed">
+                          {banner.subtitle}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          <Link
+                            href={banner.cta_link}
+                            className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold hover:bg-blue-700 transition-colors"
+                          >
+                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                            </svg>
+                            {banner.cta_label}
+                          </Link>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Navigation Dots */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                {banners.map((_, index) => (
+                  <button
+                    key={index}
+                    className={`h-2 rounded-full transition-all ${
+                      index === selectedIndex 
+                        ? 'w-8 bg-white' 
+                        : 'w-2 bg-white/50 hover:bg-white/75'
+                    }`}
+                    onClick={() => emblaApi?.scrollTo(index)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Fallback static banner when no banners in database
+          <div className="relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-10 text-white shadow-2xl transition-all duration-300">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-blue-500/20 to-transparent"></div>
+            </div>
+            <div className="relative z-10 max-w-2xl">
+              <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-4">
+                Editor's Choice
+              </span>
+              <h2 className="mb-2 text-4xl font-bold leading-tight lg:text-5xl">
+                Welcome to Ebookin
+              </h2>
+              <h3 className="mb-4 text-3xl font-bold italic text-blue-400 lg:text-4xl">
+                Your Digital Library
+              </h3>
+              <p className="mb-6 text-base leading-relaxed text-gray-300">
+                Discover thousands of ebooks across all genres.<br/>
+                Start your reading journey today with our Premium membership.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/register"
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold hover:bg-blue-700"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                  </svg>
+                  Get Started
+                </Link>
               </div>
             </div>
           </div>
         )}
-      </nav>
-
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Hero Banner */}
-        <div className="relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-10 text-white shadow-2xl transition-all duration-300">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-blue-500/20 to-transparent"></div>
-          </div>
-          <div className="relative z-10 max-w-2xl">
-            <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-4">
-              Editor's Choice
-            </span>
-            <h2 className="mb-2 text-4xl font-bold leading-tight lg:text-5xl">
-              Beyond the Horizon:
-            </h2>
-            <h3 className="mb-4 text-3xl font-bold italic text-blue-400 lg:text-4xl">
-              Journey Through Time
-            </h3>
-            <p className="mb-6 text-base leading-relaxed text-gray-300">
-              Discover the epic conclusion to the best-selling trilogy.<br/>
-              Dive into a world where reality meets legend, now available<br/>
-              exclusively for Ebookin Premium readers.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/register"
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold hover:bg-blue-700"
-              >
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-                Read Now
-              </Link>
-              <button className="rounded-lg border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold backdrop-blur-sm hover:bg-white/20">
-                Add to List
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Last Read Section */}
         <section className="mb-12">
@@ -508,9 +418,8 @@ export default function Home() {
           {/* Top Section */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-6">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-lg shadow-md">E</div>
-              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">Ebookin aja</span>
+            <Link href="/" className="flex items-center group">
+              <Image src="/logo.svg" alt="Ebookin Logo" width={48} height={48} className="h-12 w-12 invert dark:invert-0 transition-all duration-300 group-hover:scale-110 group-hover:brightness-125 group-hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" priority />
             </Link>
 
             {/* Navigation Links */}

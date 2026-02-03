@@ -1,0 +1,640 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { updateProfile } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, storage } from '@/lib/firebase';
+import { useAuth } from '@/components/AuthProvider';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+
+export default function SettingsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('settings');
+  const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
+  const [readingGoal, setReadingGoal] = useState('25');
+  const [profileImage, setProfileImage] = useState<string | null>(null); // Preview URL
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); // Actual file to upload
+  const [loading, setLoading] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isError, setIsError] = useState(false);
+  
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadProfileData();
+    }
+  }, [user]);
+
+  const loadProfileData = async () => {
+    if (!user) return;
+    
+    try {
+      // Load from user metadata
+      const metadata = user.user_metadata || {};
+      setUsername(metadata.username || user.email?.split('@')[0] || '');
+      setBio(metadata.bio || '');
+      setReadingGoal(metadata.reading_goal?.toString() || '25');
+      setProfileImage(metadata.avatar_url || null);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      setUsername(user.email?.split('@')[0] || '');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      let photoURL = profileImage;
+
+      // If a new file is selected, upload it to Firebase Storage
+      if (selectedFile) {
+        const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${selectedFile.name}`);
+        const snapshot = await uploadBytes(storageRef, selectedFile);
+        photoURL = await getDownloadURL(snapshot.ref);
+      }
+
+      // Update Firebase profile
+      await updateProfile(user, {
+        displayName: username || user.email?.split('@')[0] || '',
+        photoURL: photoURL || null
+      });
+
+      // TODO: Save bio and reading_goal to database via API route
+      
+      setSuccessMessage('Profile updated successfully!');
+      setIsError(false);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      setSuccessMessage('Failed to save profile: ' + (error.message || 'Unknown error'));
+      setIsError(true);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setSuccessMessage('Password updated successfully!');
+      setIsError(false);
+      setShowSuccessMessage(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+    } catch (error: any) {
+      setPasswordError(error.message || 'Failed to update password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    router.push('/profile');
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setSuccessMessage('Image size should be less than 5MB');
+        setIsError(true);
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
+        return;
+      }
+      
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setProfileImage(null);
+    setSelectedFile(null);
+  };
+
+  return (
+    <div>
+
+      {/* Success Notification */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in-down">
+          <div className={`flex items-center gap-3 rounded-lg px-6 py-4 shadow-lg ${
+            isError 
+              ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
+              : 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+          }`}>
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+              isError
+                ? 'bg-red-100 dark:bg-red-900'
+                : 'bg-green-100 dark:bg-green-900'
+            }`}>
+              {isError ? (
+                <svg className="h-5 w-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${
+                isError
+                  ? 'text-red-900 dark:text-red-100'
+                  : 'text-green-900 dark:text-green-100'
+              }`}>{successMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar */}
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">SETTINGS</h3>
+              </div>
+              
+              <nav className="p-2">
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'settings'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  General
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'profile'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Profile
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'security'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Account Security
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('billing')}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'billing'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  Billing
+                </button>
+
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('Settings logout started...');
+                        const { error } = await supabase.auth.signOut({ scope: 'local' });
+                        if (error) {
+                          console.error('Logout error:', error);
+                        }
+                        // Clear all auth storage
+                        Object.keys(localStorage).forEach(key => {
+                          if (key.includes('supabase') || key.includes('auth') || key.includes('sb-')) {
+                            localStorage.removeItem(key);
+                          }
+                        });
+                        sessionStorage.clear();
+                        setTimeout(() => {
+                          window.location.replace('/');
+                        }, 100);
+                      } catch (error) {
+                        console.error('Error logging out:', error);
+                        window.location.replace('/');
+                      }
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              </nav>
+            </div>
+          </aside>
+
+          {/* Main Form */}
+          <main className="flex-1">
+            {activeTab === 'settings' && (
+              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-8">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">General Settings</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Manage your account settings and preferences.</p>
+                </div>
+
+                {/* Email */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-100 dark:bg-slate-700 px-4 py-3 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  />
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Your email address cannot be changed.</p>
+                </div>
+
+                {/* Language */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Language
+                  </label>
+                  <select className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors">
+                    <option>English (US)</option>
+                    <option>English (UK)</option>
+                    <option>Bahasa Indonesia</option>
+                    <option>Español</option>
+                  </select>
+                </div>
+
+                {/* Notifications */}
+                <div className="mb-8">
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4">NOTIFICATIONS</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Email Notifications</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your reading progress</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <div className="w-11 h-6 bg-gray-200 dark:bg-slate-700 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Push Notifications</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Get notified about new releases</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 dark:bg-slate-700 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 pt-6 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-8">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Profile</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Update your personal information and profile settings.</p>
+                </div>
+
+                {/* Profile Picture */}
+                <div className="mb-8">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Profile Picture</label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                      {profileImage ? (
+                        <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
+                      ) : (
+                        username.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                        <span className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                          Upload New
+                        </span>
+                      </label>
+                      <button
+                        onClick={handleRemoveImage}
+                        className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={user?.email || ''}
+                    disabled
+                    className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-100 dark:bg-slate-700 px-4 py-3 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  />
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Your email address cannot be changed.</p>
+                </div>
+
+                {/* Username */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="username"
+                    className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
+                  />
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Your unique username displayed on your profile.</p>
+                </div>
+
+                {/* Bio */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Bio
+                  </label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Avid reader and philosophy enthusiast. Exploring the intersection of quantum mechanics and human consciousness."
+                    rows={4}
+                    className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors resize-none"
+                  />
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Brief description for your profile. Maximum 200 characters.</p>
+                </div>
+
+                {/* Annual Reading Goal */}
+                <div className="mb-8">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Annual Reading Goal
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={readingGoal}
+                      onChange={(e) => setReadingGoal(e.target.value)}
+                      min="1"
+                      max="999"
+                      className="w-24 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
+                    />
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">BOOKS</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 pt-6 border-t border-gray-200 dark:border-slate-700">
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Account Security Tab */}
+            {activeTab === 'security' && (
+              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-8">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Account Security</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Manage your password and security preferences to keep your account safe.</p>
+                </div>
+
+                {/* Change Password Section */}
+                <form onSubmit={handlePasswordChange}>
+                  <div className="mb-8">
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4">CHANGE PASSWORD</h2>
+                    
+                    {passwordError && (
+                      <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4">
+                        <p className="text-sm font-medium text-red-800 dark:text-red-200">{passwordError}</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Current Password</label>
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">New Password</label>
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Confirm New Password</label>
+                          <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Password must be at least 6 characters long.</p>
+                    </div>
+                  </div>
+
+                  {/* Two-Factor Authentication */}
+                  <div className="mb-8 pb-8 border-b border-gray-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-1">Two-Factor Authentication</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Add an extra layer of security to your account.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-11 h-6 bg-gray-200 dark:bg-slate-700 peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3 pt-6 border-t border-gray-200 dark:border-slate-700">
+                    <button 
+                      type="submit"
+                      disabled={passwordLoading}
+                      className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {passwordLoading ? 'Updating...' : 'Update Password'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      disabled={passwordLoading}
+                      className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Billing Tab */}
+            {activeTab === 'billing' && (
+              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-8">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Billing and Subscription</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Manage your subscription plans and payment history.</p>
+                </div>
+
+                {/* Current Plan */}
+                <div className="mb-8">
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4">Current Plan</h2>
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600">
+                        <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">1 Year Premium Plan</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Next billing date: October 24, 2024</p>
+                      </div>
+                    </div>
+                    <button className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                      Upgrade Plan
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cancel Subscription */}
+                <div className="pt-6 border-t border-gray-200 dark:border-slate-700">
+                  <button className="text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                    Cancel Subscription
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">If you cancel, you'll still have access until the end of your billing cycle.</p>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

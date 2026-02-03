@@ -1,0 +1,11 @@
+#!/bin/sh
+# Husky pre-commit hook
+# Scans for secrets before allowing commit
+
+echo "🔍 Running pre-commit secret scan..."
+
+# Run the secret scanner
+npm run check-secrets
+
+# Exit with the same code as the scanner
+exit $?

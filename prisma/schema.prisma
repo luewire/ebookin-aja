@@ -1,0 +1,169 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum TransactionStatus {
+  PENDING
+  SETTLEMENT
+  EXPIRE
+  CANCEL
+  DENY
+}
+
+model User {
+  id            String   @id @default(cuid())
+  firebaseUid   String   @unique
+  email         String   @unique
+  name          String?
+  role          UserRole @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  subscription  Subscription?
+  readingLogs   ReadingLog[]
+  
+  @@index([firebaseUid])
+  @@index([email])
+  @@index([role])
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status            SubscriptionStatus @default(PENDING)
+  planName          String             // "1month", "3months", "1year"
+  startDate         DateTime?
+  endDate           DateTime?
+  
+  // Midtrans transaction reference
+  orderId           String?            @unique
+  transactionId     String?
+  grossAmount       Int?
+  
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  transactions      Transaction[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model Transaction {
+  id                String            @id @default(cuid())
+  subscriptionId    String
+  subscription      Subscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  orderId           String            @unique
+  transactionStatus TransactionStatus
+  grossAmount       Int
+  paymentType       String?
+  transactionTime   DateTime?
+  settlementTime    DateTime?
+  
+  // Raw webhook payload for audit
+  webhookPayload    Json?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([orderId])
+  @@index([subscriptionId])
+  @@index([transactionStatus])
+}
+
+model Ebook {
+  id          String   @id @default(cuid())
+  title       String
+  author      String
+  description String?  @db.Text
+  coverUrl    String?
+  pdfUrl      String?  // Cloud storage URL
+  
+  category    String
+  isPremium   Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  
+  priority    Int      @default(0) // For ordering
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  readingLogs ReadingLog[]
+  
+  @@index([isActive])
+  @@index([isPremium])
+  @@index([category])
+  @@index([priority])
+}
+
+model Banner {
+  id          String   @id @default(cuid())
+  title       String
+  subtitle    String?
+  ctaLabel    String?
+  ctaLink     String?
+  imageUrl    String?
+  
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // For ordering
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([isActive])
+  @@index([priority])
+}
+
+model ReadingLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  ebookId     String
+  ebook       Ebook    @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  
+  startedAt   DateTime @default(now())
+  lastReadAt  DateTime @default(now())
+  
+  // Session is "active" if lastReadAt is within last 30 minutes
+  
+  @@unique([userId, ebookId])
+  @@index([userId])
+  @@index([ebookId])
+  @@index([lastReadAt])
+}
+
+model AdminEvent {
+  id          String   @id @default(cuid())
+  type        String   // "subscription", "audit", "system_alert"
+  title       String
+  description String?  @db.Text
+  metadata    Json?    // Additional structured data
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([type])
+  @@index([createdAt])
+}

@@ -107,7 +107,7 @@ export function withAuth(
 export function withAdmin(
   handler: (req: AuthenticatedRequest) => Promise<NextResponse>
 ) {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest, context: any) => {
     // First authenticate
     const authMiddleware = withAuth(async (authReq: AuthenticatedRequest) => {
       // Then check admin role
@@ -127,6 +127,6 @@ export function withAdmin(
       return handler(authReq);
     });
     
-    return authMiddleware(req);
+    return authMiddleware(req, context);
   };
 }

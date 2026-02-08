@@ -322,11 +322,15 @@ async function deleteHandler(req: AuthenticatedRequest) {
       try {
         if (ebook.pdfUrl?.includes('supabase.co')) {
           // It's in Supabase Storage
-          const { error } = await supabaseAdmin.storage
-            .from('ebooks')
-            .remove([ebook.publicId]);
-          if (error) throw error;
-          console.log(`Deleted file from Supabase: ${ebook.publicId}`);
+          if (!supabaseAdmin) {
+            console.warn('Supabase not configured, skipping storage deletion');
+          } else {
+            const { error } = await supabaseAdmin.storage
+              .from('ebooks')
+              .remove([ebook.publicId]);
+            if (error) throw error;
+            console.log(`Deleted file from Supabase: ${ebook.publicId}`);
+          }
         } else if (ebook.publicId.startsWith('ebooks/')) {
           // It's in Firebase Storage
           const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.replace(/^gs:\/\//, '');

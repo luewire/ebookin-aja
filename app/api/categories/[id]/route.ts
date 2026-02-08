@@ -34,12 +34,21 @@ export async function PATCH(
     }
 
     const { id } = params;
+    const categoryId = parseInt(id);
+    
+    if (isNaN(categoryId)) {
+      return NextResponse.json(
+        { error: 'Invalid category ID' },
+        { status: 400 }
+      );
+    }
+    
     const body = await req.json();
     const { name, isActive } = body;
 
     // Check if category exists
     const existingCategory = await prisma.category.findUnique({
-      where: { id },
+      where: { id: categoryId },
       include: {
         _count: {
           select: { ebooks: true }
@@ -79,7 +88,7 @@ export async function PATCH(
             { name: name.trim() },
             { slug }
           ],
-          NOT: { id }
+          NOT: { id: categoryId }
         }
       });
 
@@ -99,7 +108,7 @@ export async function PATCH(
     }
 
     const category = await prisma.category.update({
-      where: { id },
+      where: { id: categoryId },
       data: updateData,
       include: {
         _count: {
@@ -153,10 +162,18 @@ export async function DELETE(
     }
 
     const { id } = params;
+    const categoryId = parseInt(id);
+    
+    if (isNaN(categoryId)) {
+      return NextResponse.json(
+        { error: 'Invalid category ID' },
+        { status: 400 }
+      );
+    }
 
     // Check if category exists
     const category = await prisma.category.findUnique({
-      where: { id },
+      where: { id: categoryId },
       include: {
         _count: {
           select: { ebooks: true }
@@ -180,7 +197,7 @@ export async function DELETE(
     }
 
     await prisma.category.delete({
-      where: { id }
+      where: { id: categoryId }
     });
 
     return NextResponse.json(

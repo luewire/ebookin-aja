@@ -93,14 +93,24 @@ async function getHandler(req: AuthenticatedRequest) {
 
     const readingLogs = await prisma.readingLog.findMany({
       where: { userId },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        ebookId: true,
+        startedAt: true,
+        lastReadAt: true,
         ebook: {
           select: {
             id: true,
             title: true,
             author: true,
             coverUrl: true,
-            category: true,
+            categoryId: true,
+            category: {
+              select: {
+                name: true
+              }
+            },
           },
         },
       },
@@ -114,7 +124,10 @@ async function getHandler(req: AuthenticatedRequest) {
           id: log.id,
           startedAt: log.startedAt,
           lastReadAt: log.lastReadAt,
-          ebook: log.ebook,
+          ebook: {
+            ...log.ebook,
+            category: log.ebook.category.name
+          },
         })),
       },
       { status: 200 }

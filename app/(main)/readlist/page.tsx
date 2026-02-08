@@ -9,24 +9,26 @@ interface Ebook {
   id: string;
   title: string;
   author: string;
-  cover: string;
+  coverUrl: string;
   category: string;
-  description: string;
+  description?: string;
+  isPremium?: boolean;
 }
 
 interface Wishlist {
   id: string;
-  ebook_id: string;
-  status: 'want_to_read' | 'finished' | 'reading';
-  added_at: string;
+  ebookId: string;
+  status: string;
+  createdAt: string;
   ebook: Ebook;
+  progress?: number;
 }
 
 export default function ReadlistPage() {
   const { user, loading: authLoading } = useAuth();
   const [wishlist, setWishlist] = useState<Wishlist[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'want_to_read' | 'finished' | 'all'>('want_to_read');
+  const [activeTab, setActiveTab] = useState<'WANT_TO_READ' | 'FINISHED' | 'all'>('WANT_TO_READ');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const router = useRouter();
@@ -40,38 +42,46 @@ export default function ReadlistPage() {
   }, [authLoading, user]);
 
   const fetchWishlist = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('wishlist')
-        .select(`
-          id,
-          ebook_id,
-          status,
-          added_at,
-          ebooks (
-            id,
-            title,
-            author,
-            cover,
-            category,
-            description
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('added_at', { ascending: false });
+    if (!user) return;
 
-      if (error) throw error;
+    try {
+      const token = await user.getIdToken();
       
-      const items = data?.map((item: any) => ({
-        id: item.id,
-        ebook_id: item.ebook_id,
-        status: item.status,
-        added_at: item.added_at,
-        ebook: item.ebooks
-      })) || [];
-      
-      setWishlist(items);
-    } catch (error: any) {
+      const response = await fetch('/api/readlist', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data: Wishlist[] = await response.json();
+        
+        // Merge with local reading progress
+        const updatedData = data.map(item => {
+          const storageKey = `reading-progress-${user.uid}-${item.ebookId}`;
+          const localData = localStorage.getItem(storageKey);
+          let progress = 0;
+          
+          if (localData) {
+            try {
+              const parsed = JSON.parse(localData);
+              if (parsed.progress) {
+                progress = parsed.progress;
+              }
+            } catch (e) {
+              // Ignore parse error
+            }
+          }
+          
+          return {
+            ...item,
+            progress
+          };
+        });
+
+        setWishlist(updatedData);
+      }
+    } catch (error) {
       console.error('Error fetching wishlist:', error);
     } finally {
       setLoading(false);
@@ -79,7 +89,20 @@ export default function ReadlistPage() {
   };
 
   const filteredWishlist = wishlist.filter(item => {
+    // Determine status primarily by progress first, then by DB status
+    const progress = item.progress || 0;
+    const isFinished = progress >= 100;
+    
     if (activeTab === 'all') return true;
+    
+    if (activeTab === 'FINISHED') {
+      return isFinished || item.status === 'FINISHED';
+    } 
+    
+    if (activeTab === 'WANT_TO_READ') {
+      return !isFinished && item.status !== 'FINISHED';
+    }
+    
     return item.status === activeTab;
   });
 
@@ -120,9 +143,9 @@ export default function ReadlistPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4 border-b border-gray-200 dark:border-slate-700 w-full sm:w-auto">
             <button
-              onClick={() => { setActiveTab('want_to_read'); setCurrentPage(1); }}
+              onClick={() => { setActiveTab('WANT_TO_READ'); setCurrentPage(1); }}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'want_to_read'
+                activeTab === 'WANT_TO_READ'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
@@ -130,24 +153,14 @@ export default function ReadlistPage() {
               Want to Read
             </button>
             <button
-              onClick={() => { setActiveTab('finished'); setCurrentPage(1); }}
+              onClick={() => { setActiveTab('FINISHED'); setCurrentPage(1); }}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'finished'
+                activeTab === 'FINISHED'
                   ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               Finished
-            </button>
-            <button
-              onClick={() => { setActiveTab('all'); setCurrentPage(1); }}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'all'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              Recently Added
             </button>
           </div>
 
@@ -181,10 +194,10 @@ export default function ReadlistPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
               {paginatedItems.map((item) => (
                 <div key={item.id} className="group">
-                  <Link href={`/ebooks/${item.ebook_id}`} className="block mb-3">
+                  <Link href={`/ebooks/${item.ebookId}`} className="block mb-3">
                     <div className="aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-slate-700 shadow-md group-hover:shadow-xl transition-all duration-300">
                       <img
-                        src={item.ebook.cover || '/placeholder-book.jpg'}
+                        src={item.ebook.coverUrl || '/placeholder-book.jpg'}
                         alt={item.ebook.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -196,21 +209,30 @@ export default function ReadlistPage() {
                   </h3>
                   <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{item.ebook.author}</p>
                   
-                  {/* Rating Stars */}
-                  <div className="flex items-center gap-1 mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <svg key={i} className="h-3 w-3 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                        <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                      </svg>
-                    ))}
-                    <span className="text-xs text-gray-600 dark:text-gray-400 ml-1">(4.5)</span>
-                  </div>
+                  {/* Progress indicator */}
+                  {item.progress !== undefined && item.progress > 0 && (
+                    <div className="mb-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          {item.progress >= 100 ? 'Completed' : `${Math.round(item.progress)}% read`}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${
+                            item.progress >= 100 ? 'bg-green-500' : 'bg-blue-500'
+                          } transition-all duration-300`}
+                          style={{ width: `${Math.min(item.progress, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <Link
-                    href={`/ebooks/${item.ebook_id}`}
+                    href={`/ebooks/${item.ebookId}`}
                     className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-blue-500 transition-all duration-200"
                   >
-                    {item.status === 'finished' ? 'Read Again' : 'Read Now'}
+                    {(item.progress || 0) >= 100 ? 'Read Again' : 'Read Now'}
                   </Link>
                 </div>
               ))}

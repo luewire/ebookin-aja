@@ -14,6 +14,11 @@ interface Ebook {
   coverUrl: string | null;
   category: string;
   isPremium: boolean;
+  pdfUrl?: string;
+}
+
+interface ReadingProgress {
+  [bookId: string]: number;
 }
 
 interface Banner {
@@ -26,6 +31,16 @@ interface Banner {
   priority: number;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  _count?: {
+    ebooks: number;
+  };
+}
+
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -34,13 +49,50 @@ export default function Home() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, []);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [continueReading, setContinueReading] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  // Derived state for quick lookup
+  const readingProgressMap = continueReading.reduce((acc, item) => ({...acc, [item.id]: item.progress}), {} as Record<string, number>);
+
+  // Fetch continue reading list from API
+  const fetchContinueReading = async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/reading-progress', {
+          headers: {
+              'Authorization': `Bearer ${token}`
+          }
+      });
+      
+      if (response.ok) {
+          const data = await response.json();
+          // Map the API response structure to what the UI expects
+          const formatted = data.map((item: any) => ({
+              ...item.ebook,
+              progress: item.progress
+          }));
+          setContinueReading(formatted);
+      }
+    } catch (error) {
+        console.error("Error fetching continue reading:", error);
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
       fetchBooks();
       fetchBanners();
+      fetchCategories();
     }
-  }, [user, loading, router]);
+  }, [loading, router]);
+
+  useEffect(() => {
+    if (user && !loading) {
+        fetchContinueReading();
+    }
+  }, [user, loading]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -87,6 +139,18 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error fetching books:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      
+      const data = await response.json();
+      setCategories(data.categories.filter((cat: Category) => cat.isActive));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -217,67 +281,52 @@ export default function Home() {
           </div>
         )}
 
-        {/* Last Read Section */}
-        <section className="mb-12">
-          <div className="mb-6 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
-              <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Last Read
-            </h3>
-            <Link href="/profile" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-              View all activity
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {lastRead.length > 0 ? lastRead.map((book) => {
-              const progress = Math.floor(Math.random() * 40) + 30;
-              return (
+        {/* Continue Reading Section */}
+        {continueReading.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors">
+                <svg className="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Continue Reading
+              </h3>
+              <Link href="/readlist" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                View all activity
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {continueReading.map((book) => (
                 <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
                   <div className="relative overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md">
                     <div className="absolute right-2 top-2 z-10 rounded bg-white/95 dark:bg-slate-800/95 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 shadow-sm backdrop-blur transition-colors">
-                      {progress}% READ
+                      {Math.round(book.progress)}% READ
                     </div>
-                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600">
                       {book.coverUrl ? (
                         <img src={book.coverUrl} alt={book.title} className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full items-center justify-center text-gray-400">
+                        <div className="flex h-full items-center justify-center text-gray-400 dark:text-gray-500">
                           <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
                         </div>
                       )}
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-slate-700">
                       <div 
                         className="h-full bg-blue-600 transition-all" 
-                        style={{ width: `${progress}%` }}
+                        style={{ width: `${book.progress}%` }}
                       ></div>
                     </div>
                   </div>
-                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900">{book.title}</h4>
-                  <p className="text-xs text-gray-600">{book.author}</p>
+                  <h4 className="mt-2 line-clamp-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{book.title}</h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{book.author}</p>
                 </Link>
-              );
-            }) : (
-              Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="group">
-                  <div className="relative overflow-hidden rounded-lg bg-white shadow-sm">
-                    <div className="aspect-[3/4] w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <svg className="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mt-2 h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="mt-1 h-3 bg-gray-100 rounded w-1/2"></div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Trending Books Section */}
         <section className="mb-12">
@@ -296,7 +345,14 @@ export default function Home() {
               return (
                 <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
                   <div className="overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-sm transition-transform hover:scale-105 hover:shadow-md">
-                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600">
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 relative">
+                      {readingProgressMap[book.id] > 0 && (
+                        <div className="absolute top-2 right-2 z-10 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-md border border-white/20 shadow-lg">
+                          <p className="text-[10px] font-bold text-white tracking-wider">
+                            {readingProgressMap[book.id]}% READ
+                          </p>
+                        </div>
+                      )}
                       {book.coverUrl ? (
                         <img src={book.coverUrl} alt={book.title} className="h-full w-full object-cover" />
                       ) : (
@@ -346,7 +402,14 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {(lastRead.length > 0 ? lastRead.slice(0, 3) : Array.from({ length: 3 })).map((book: any, index) => (
               <div key={book?.id || index} className="flex gap-4 rounded-lg bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-slate-700 transition-colors">
+                <div className="relative h-24 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-200 dark:bg-slate-700 transition-colors">
+                  {book?.id && readingProgressMap[book.id] > 0 && (
+                    <div className="absolute top-1 right-1 z-10 px-1.5 py-0.5 bg-black/70 backdrop-blur-sm rounded border border-white/20 shadow-sm">
+                      <p className="text-[9px] font-bold text-white">
+                        {readingProgressMap[book.id]}%
+                      </p>
+                    </div>
+                  )}
                   {book?.coverUrl ? (
                     <img src={book.coverUrl} alt={book.title} className="h-full w-full object-cover" />
                   ) : (
@@ -388,30 +451,44 @@ export default function Home() {
               </svg>
               Explore by Category
             </h3>
-            <Link href="/profile" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+            <Link href="/browse" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
               View all categories
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { name: 'Fiction', icon: '✨', color: 'from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400', borderColor: 'border-blue-100/50 dark:border-blue-800/50' },
-              { name: 'Science', icon: '🔬', color: 'from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30', textColor: 'text-green-700 dark:text-green-400', borderColor: 'border-green-100/50 dark:border-green-800/50' },
-              { name: 'History', icon: '🏛️', color: 'from-yellow-50 to-yellow-100 dark:from-yellow-950/30 dark:to-yellow-900/30', textColor: 'text-yellow-700 dark:text-yellow-400', borderColor: 'border-yellow-100/50 dark:border-yellow-800/50' },
-              { name: 'Mystery', icon: '🔍', color: 'from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30', textColor: 'text-purple-700 dark:text-purple-400', borderColor: 'border-purple-100/50 dark:border-purple-800/50' },
-              { name: 'Fantasy', icon: '👑', color: 'from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/30', textColor: 'text-pink-700 dark:text-pink-400', borderColor: 'border-pink-100/50 dark:border-pink-800/50' },
-              { name: 'Biography', icon: '👤', color: 'from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30', textColor: 'text-indigo-700 dark:text-indigo-400', borderColor: 'border-indigo-100/50 dark:border-indigo-800/50' },
-              { name: 'Philosophy', icon: '🧠', color: 'from-orange-50 to-orange-100 dark:from-orange-950/30 dark:to-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400', borderColor: 'border-orange-100/50 dark:border-orange-800/50' },
-              { name: 'View All', icon: '⋯', color: 'from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-800', textColor: 'text-gray-700 dark:text-gray-300', borderColor: 'border-gray-200/50 dark:border-slate-700/50' },
-            ].map((category) => (
-              <Link
-                key={category.name}
-                href="/profile"
-                className={`flex flex-col items-center justify-center gap-3 rounded-xl bg-gradient-to-br ${category.color} border ${category.borderColor} p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-md`}
-              >
-                <span className="text-4xl">{category.icon}</span>
-                <span className={`text-sm font-semibold ${category.textColor}`}>{category.name}</span>
-              </Link>
-            ))}
+            {categories.map((category, index) => {
+              const colorSchemes = [
+                { color: 'from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400', borderColor: 'border-blue-100/50 dark:border-blue-800/50', icon: '✨' },
+                { color: 'from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/30', textColor: 'text-green-700 dark:text-green-400', borderColor: 'border-green-100/50 dark:border-green-800/50', icon: '🔬' },
+                { color: 'from-yellow-50 to-yellow-100 dark:from-yellow-950/30 dark:to-yellow-900/30', textColor: 'text-yellow-700 dark:text-yellow-400', borderColor: 'border-yellow-100/50 dark:border-yellow-800/50', icon: '🏛️' },
+                { color: 'from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30', textColor: 'text-purple-700 dark:text-purple-400', borderColor: 'border-purple-100/50 dark:border-purple-800/50', icon: '🔍' },
+                { color: 'from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/30', textColor: 'text-pink-700 dark:text-pink-400', borderColor: 'border-pink-100/50 dark:border-pink-800/50', icon: '👑' },
+                { color: 'from-indigo-50 to-indigo-100 dark:from-indigo-950/30 dark:to-indigo-900/30', textColor: 'text-indigo-700 dark:text-indigo-400', borderColor: 'border-indigo-100/50 dark:border-indigo-800/50', icon: '👤' },
+                { color: 'from-orange-50 to-orange-100 dark:from-orange-950/30 dark:to-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400', borderColor: 'border-orange-100/50 dark:border-orange-800/50', icon: '🧠' },
+              ];
+              const scheme = colorSchemes[index % colorSchemes.length];
+              
+              return (
+                <Link
+                  key={category.id}
+                  href={`/browse?category=${encodeURIComponent(category.name)}`}
+                  className={`flex flex-col items-center justify-center gap-3 rounded-xl bg-gradient-to-br ${scheme.color} border ${scheme.borderColor} p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-md`}
+                >
+                  <span className="text-4xl">{scheme.icon}</span>
+                  <span className={`text-sm font-semibold ${scheme.textColor}`}>{category.name}</span>
+                  {category._count && category._count.ebooks > 0 && (
+                    <span className="text-xs opacity-70">{category._count.ebooks} books</span>
+                  )}
+                </Link>
+              );
+            })}
+            <Link
+              href="/browse"
+              className="flex flex-col items-center justify-center gap-3 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-800 border border-gray-200/50 dark:border-slate-700/50 p-6 text-center transition-all duration-300 hover:scale-105 hover:shadow-md"
+            >
+              <span className="text-4xl">⋯</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">View All</span>
+            </Link>
           </div>
         </section>
     </div>

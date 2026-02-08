@@ -80,30 +80,17 @@ function PricingContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-slate-900 dark:to-slate-800 transition-colors">
-      {/* Header */}
-      <nav className="border-b border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-sm shadow-lg">
-                E
-              </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Ebookin
-              </span>
-            </Link>
-            
-            {user && (
-              <button
-                onClick={handleSkip}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-              >
-                Lewati
-              </button>
-            )}
-          </div>
+      {/* Skip Button - Top Left */}
+      {user && (
+        <div className="absolute top-6 right-6 z-50">
+          <button
+            onClick={handleSkip}
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors font-medium"
+          >
+            Lewati
+          </button>
         </div>
-      </nav>
+      )}
 
       {/* Main Content */}
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">

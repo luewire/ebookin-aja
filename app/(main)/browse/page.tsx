@@ -1,39 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PricingModal from '@/components/PricingModal';
-import { hasActiveSubscription } from '@/lib/subscription';
+
+interface ReadingProgress {
+  [bookId: string]: number;
+}
+
+// Note: You'll need to configure Supabase client or use your API
+// This is a placeholder - replace with your actual data fetching method
+const fetchEbooksFromAPI = async () => {
+  const response = await fetch('/api/ebooks');
+  if (!response.ok) throw new Error('Failed to fetch ebooks');
+  return response.json();
+};
 
 interface Ebook {
   id: string;
   title: string;
   author: string;
-  cover: string;
+  coverUrl: string | null;
   category: string;
   description: string;
   price?: number;
-  is_premium?: boolean;
+  isPremium?: boolean;
 }
 
-const categories = [
-  'Fiction',
-  'Non-Fiction',
-  'Mystery & Thriller',
-  'Science Fiction',
-  'Fantasy',
-  'Biography',
-  'Philosophy',
-  'History',
-  'Business & Economics',
-  'Health & Wellness'
-];
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  _count?: {
+    ebooks: number;
+  };
+}
 
 export default function BrowsePage() {
   const { user } = useAuth();
   const [ebooks, setEbooks] = useState<Ebook[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,27 +52,97 @@ export default function BrowsePage() {
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Ebook | null>(null);
+  const [readingProgress, setReadingProgress] = useState<ReadingProgress>({});
+  const [banners, setBanners] = useState<any[]>([]);
   const itemsPerPage = 12;
   const router = useRouter();
 
+  // Get reading progress from localStorage
+  const getReadingProgress = useCallback(() => {
+    if (!user) return;
+    
+    try {
+      const progress: ReadingProgress = {};
+      const prefix = `reading-progress-${user.uid}-`;
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          const bookId = key.replace(prefix, '');
+          const storageValue = localStorage.getItem(key);
+          if (storageValue) {
+            try {
+              const parsed = JSON.parse(storageValue);
+              if (parsed.progress) {
+                progress[bookId] = parsed.progress;
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }
+        }
+      }
+      
+      setReadingProgress(progress);
+    } catch (error) {
+      console.error('Error reading progress:', error);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchEbooks();
+    fetchCategories();
+    fetchBanners();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      
+      const data = await response.json();
+      // Only show active categories
+      setCategories(data.categories.filter((cat: Category) => cat.isActive));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
+  const fetchBanners = async () => {
+    try {
+      const response = await fetch('/api/banners');
+      if (response.ok) {
+        const data = await response.json();
+        setBanners(data.banners || []);
+      }
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      getReadingProgress();
+    }
+  }, [user, getReadingProgress]);
 
   const fetchEbooks = async () => {
     try {
-      const { data, error } = await supabase
-        .from('ebooks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setEbooks(data || []);
+      const data = await fetchEbooksFromAPI();
+      console.log('API Response:', data);
+      setEbooks(Array.isArray(data.ebooks) ? data.ebooks : []);
     } catch (error: any) {
       console.error('Error fetching ebooks:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const hasActiveSubscription = () => {
+    // Check if user has active subscription
+    // Replace with your actual subscription check logic
+    return (user as any)?.subscriptionStatus === 'active';
   };
 
   const filteredEbooks = ebooks.filter(ebook => {
@@ -73,15 +152,15 @@ export default function BrowsePage() {
       ebook.author.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGenre = !selectedGenre || ebook.category === selectedGenre;
     const matchesPrice = !selectedPrice || 
-      (selectedPrice === 'free' && !ebook.is_premium) ||
-      (selectedPrice === 'premium' && ebook.is_premium);
+      (selectedPrice === 'free' && !ebook.isPremium) ||
+      (selectedPrice === 'premium' && ebook.isPremium);
     
     return matchesCategory && matchesSearch && matchesGenre && matchesPrice;
   });
 
   const handleBookClick = (e: React.MouseEvent, ebook: Ebook) => {
     // If book is premium and user doesn't have subscription, show pricing modal
-    if (ebook.is_premium && !hasActiveSubscription()) {
+    if (ebook.isPremium && !hasActiveSubscription()) {
       e.preventDefault();
       setSelectedBook(ebook);
       setShowPricingModal(true);
@@ -92,6 +171,7 @@ export default function BrowsePage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedEbooks = filteredEbooks.slice(startIndex, startIndex + itemsPerPage);
 
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -121,14 +201,15 @@ export default function BrowsePage() {
     );
   }
 
+  // Main content
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <aside className="w-full lg:w-64 flex-shrink-0">
-            <div className="sticky top-24 space-y-6">
-              {/* Categories */}
-              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6">
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Sidebar */}
+        <aside className="w-full lg:w-64 flex-shrink-0">
+          <div className="sticky top-24 space-y-6">
+            {/* Categories */}
+            <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6">
                 <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
                   <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -149,56 +230,45 @@ export default function BrowsePage() {
                   </button>
                   {categories.map((category) => (
                     <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.name)}
                       className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedCategory === category
+                        selectedCategory === category.name
                           ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium'
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                       }`}
                     >
-                      <div className={`h-2 w-2 rounded-full ${selectedCategory === category ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`} />
-                      {category}
+                      <div className={`h-2 w-2 rounded-full ${selectedCategory === category.name ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`} />
+                      {category.name}
+                      {category._count && category._count.ebooks > 0 && (
+                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{category._count.ebooks}</span>
+                      )}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Format */}
-              <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  Format
-                </h3>
-                <div className="space-y-2">
-                  <button className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
-                    <div className="h-2 w-2 rounded-full bg-blue-600" />
-                    E-book
-                  </button>
-                  <button className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                    <div className="h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-600" />
-                    Audiobook
+
+              {/* Upgrade Banner (Only for non-premium users) */}
+              {user?.plan !== 'Premium' && (
+                <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-6 text-white shadow-lg">
+                  <h3 className="text-lg font-bold mb-2">UPGRADE</h3>
+                  <p className="text-sm mb-4 opacity-100 font-medium">Get Unlimited Access to Premium E-books</p>
+                  <button 
+                    onClick={() => setShowPricingModal(true)}
+                    className="w-full rounded-lg bg-white text-blue-600 px-4 py-2 text-sm font-bold hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    Go Premium
                   </button>
                 </div>
-              </div>
+              )}
+          </div>
+        </aside>
 
-              {/* Upgrade Banner */}
-              <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-6 text-white">
-                <h3 className="text-lg font-bold mb-2">UPGRADE</h3>
-                <p className="text-sm mb-4 opacity-90">Unlimited Reading</p>
-                <button className="w-full rounded-lg bg-white text-blue-600 px-4 py-2 text-sm font-semibold hover:shadow-lg transition-all">
-                  Go Premium
-                </button>
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1">
-            {/* Header */}
-            <div className="mb-8">
+        {/* Main Content */}
+        <main className="flex-1">
+          {/* Header */}
+          <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Discover New Books</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Explore thousands of titles curated just for you.
@@ -230,18 +300,8 @@ export default function BrowsePage() {
               >
                 <option value="">Genre</option>
                 {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
                 ))}
-              </select>
-
-              <select
-                value={selectedPrice}
-                onChange={(e) => setSelectedPrice(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Price</option>
-                <option value="free">Free</option>
-                <option value="premium">Premium</option>
               </select>
 
               <select
@@ -271,15 +331,12 @@ export default function BrowsePage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
                   {paginatedEbooks.map((ebook) => (
                     <div key={ebook.id} className="group relative">
-                      {/* Badge */}
-                      {ebook.is_premium && (
-                        <div className="absolute top-2 left-2 z-10 rounded-full bg-purple-600 px-3 py-1 text-xs font-bold text-white shadow-lg">
-                          PREMIUM
-                        </div>
-                      )}
-                      {!ebook.is_premium && (
-                        <div className="absolute top-2 left-2 z-10 rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white shadow-lg">
-                          FREE
+                      {/* Reading Progress Badge */}
+                      {readingProgress[ebook.id] > 0 && (
+                        <div className="absolute top-2 right-2 z-10 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1 border border-white/20 shadow-lg">
+                          <p className="text-xs font-bold text-white tracking-wider">
+                            {readingProgress[ebook.id] >= 100 ? 'FINISHED' : `${readingProgress[ebook.id]}% READ`}
+                          </p>
                         </div>
                       )}
 
@@ -290,7 +347,7 @@ export default function BrowsePage() {
                       >
                         <div className="aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-slate-700 shadow-md group-hover:shadow-xl transition-all duration-300">
                           <img
-                            src={ebook.cover || '/placeholder-book.jpg'}
+                            src={ebook.coverUrl || '/placeholder-book.jpg'}
                             alt={ebook.title}
                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
@@ -302,13 +359,6 @@ export default function BrowsePage() {
                       </h3>
                       <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{ebook.author}</p>
                       
-                      {/* Price */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                          {ebook.is_premium ? `$${ebook.price || 12.99}` : 'FREE'}
-                        </span>
-                      </div>
-
                       <Link
                         href={`/ebooks/${ebook.id}`}
                         className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-blue-500 transition-all duration-200"
@@ -380,14 +430,14 @@ export default function BrowsePage() {
             )}
           </main>
         </div>
-      </div>
 
       {/* Pricing Modal */}
       <PricingModal
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
-        bookTitle={selectedBook?.title}
+        bookTitle={selectedBook?.title || ''}
         redirectTo={selectedBook ? `/ebooks/${selectedBook.id}` : undefined}
       />
+    </div>
   );
 }

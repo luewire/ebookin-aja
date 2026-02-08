@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const banners = await prisma.banner.findMany({
       where: { isActive: true },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      take: 10,
       select: {
         id: true,
         title: true,

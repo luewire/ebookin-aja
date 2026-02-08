@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin, AuthenticatedRequest } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/prisma';
+import cloudinary from 'cloudinary';
+import { adminStorage } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase';
+
+// Configure Cloudinary
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
  * GET /api/admin/ebooks
@@ -25,7 +35,13 @@ async function getHandler(req: AuthenticatedRequest) {
       ];
     }
     if (category) {
-      where.category = category;
+      // Find category by name
+      const categoryRecord = await prisma.category.findFirst({
+        where: { name: category }
+      });
+      if (categoryRecord) {
+        where.categoryId = categoryRecord.id;
+      }
     }
 
     const [ebooks, total] = await Promise.all([
@@ -41,7 +57,15 @@ async function getHandler(req: AuthenticatedRequest) {
           description: true,
           coverUrl: true,
           pdfUrl: true,
-          category: true,
+          publicId: true, // Include publicId
+          categoryId: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true
+            }
+          },
           isPremium: true,
           isActive: true,
           priority: true,
@@ -59,6 +83,7 @@ async function getHandler(req: AuthenticatedRequest) {
       {
         ebooks: ebooks.map((ebook: any) => ({
           ...ebook,
+          category: ebook.category.name, // Return category name for backward compatibility
           readCount: ebook._count.readingLogs,
         })),
         pagination: {
@@ -91,6 +116,7 @@ async function postHandler(req: AuthenticatedRequest) {
       description,
       coverUrl,
       pdfUrl,
+      publicId,
       category,
       isPremium,
       isActive,
@@ -104,6 +130,18 @@ async function postHandler(req: AuthenticatedRequest) {
       );
     }
 
+    // Find category by name
+    const categoryRecord = await prisma.category.findFirst({
+      where: { name: category }
+    });
+
+    if (!categoryRecord) {
+      return NextResponse.json(
+        { error: `Category "${category}" not found` },
+        { status: 400 }
+      );
+    }
+
     const ebook = await prisma.ebook.create({
       data: {
         title,
@@ -111,11 +149,34 @@ async function postHandler(req: AuthenticatedRequest) {
         description,
         coverUrl,
         pdfUrl,
-        category,
+        publicId,
+        categoryId: categoryRecord.id,
         isPremium: isPremium ?? true,
         isActive: isActive ?? true,
         priority: priority ?? 0,
       },
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        description: true,
+        coverUrl: true,
+        pdfUrl: true,
+        publicId: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        isPremium: true,
+        isActive: true,
+        priority: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     // Log admin action
@@ -128,7 +189,12 @@ async function postHandler(req: AuthenticatedRequest) {
       },
     });
 
-    return NextResponse.json({ ebook }, { status: 201 });
+    return NextResponse.json({ 
+      ebook: {
+        ...ebook,
+        category: ebook.category.name // Return category name
+      }
+    }, { status: 201 });
   } catch (error) {
     console.error('Create ebook error:', error);
     return NextResponse.json(
@@ -144,7 +210,7 @@ async function postHandler(req: AuthenticatedRequest) {
  */
 async function patchHandler(req: AuthenticatedRequest) {
   try {
-    const { id, ...updates } = await req.json();
+    const { id, category, ...otherUpdates } = await req.json();
 
     if (!id) {
       return NextResponse.json(
@@ -153,9 +219,49 @@ async function patchHandler(req: AuthenticatedRequest) {
       );
     }
 
+    const updates: any = { ...otherUpdates };
+
+    // If category is provided, look up its ID
+    if (category) {
+      const categoryRecord = await prisma.category.findFirst({
+        where: { name: category }
+      });
+
+      if (!categoryRecord) {
+        return NextResponse.json(
+          { error: `Category "${category}" not found` },
+          { status: 400 }
+        );
+      }
+
+      updates.categoryId = categoryRecord.id;
+    }
+
     const ebook = await prisma.ebook.update({
       where: { id },
       data: updates,
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        description: true,
+        coverUrl: true,
+        pdfUrl: true,
+        publicId: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
+        isPremium: true,
+        isActive: true,
+        priority: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     // Log admin action
@@ -168,7 +274,12 @@ async function patchHandler(req: AuthenticatedRequest) {
       },
     });
 
-    return NextResponse.json({ ebook }, { status: 200 });
+    return NextResponse.json({ 
+      ebook: {
+        ...ebook,
+        category: ebook.category.name // Return category name
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error('Update ebook error:', error);
     return NextResponse.json(
@@ -196,7 +307,7 @@ async function deleteHandler(req: AuthenticatedRequest) {
 
     const ebook = await prisma.ebook.findUnique({
       where: { id },
-      select: { title: true },
+      select: { title: true, publicId: true, pdfUrl: true },
     });
 
     if (!ebook) {
@@ -204,6 +315,34 @@ async function deleteHandler(req: AuthenticatedRequest) {
         { error: 'Ebook not found' },
         { status: 404 }
       );
+    }
+
+    // Delete from storage (Supabase, Firebase, or Cloudinary)
+    if (ebook.publicId) {
+      try {
+        if (ebook.pdfUrl?.includes('supabase.co')) {
+          // It's in Supabase Storage
+          const { error } = await supabaseAdmin.storage
+            .from('ebooks')
+            .remove([ebook.publicId]);
+          if (error) throw error;
+          console.log(`Deleted file from Supabase: ${ebook.publicId}`);
+        } else if (ebook.publicId.startsWith('ebooks/')) {
+          // It's in Firebase Storage
+          const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.replace(/^gs:\/\//, '');
+          const bucket = adminStorage.bucket(bucketName);
+          const file = bucket.file(ebook.publicId);
+          await file.delete();
+          console.log(`Deleted file from Firebase: ${ebook.publicId}`);
+        } else {
+          // Assume it's in Cloudinary
+          await cloudinary.v2.uploader.destroy(ebook.publicId, { resource_type: 'raw' });
+          console.log(`Deleted file from Cloudinary: ${ebook.publicId}`);
+        }
+      } catch (storageError) {
+        console.error('Failed to delete file from storage:', storageError);
+        // Continue with database deletion even if storage deletion fails
+      }
     }
 
     await prisma.ebook.delete({

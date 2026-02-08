@@ -31,6 +31,7 @@ export const config = {
     '/profile/:path*',
     '/admin/:path*',
     '/ebooks/:path*',
+    '/reader/:path*',
     '/readlist/:path*',
     '/settings/:path*',
     '/login',

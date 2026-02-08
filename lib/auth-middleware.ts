@@ -9,16 +9,30 @@ export interface AuthenticatedRequest extends NextRequest {
     email: string;
     role: string;
   };
+  decodedToken?: any;
+}
+
+/**
+ * Verify Firebase token and return decoded token
+ */
+export async function verifyAuthToken(token: string) {
+  try {
+    const decodedToken = await verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
+  }
 }
 
 /**
  * Middleware to verify Firebase token and fetch user from database
  * Use this in API routes that require authentication
  */
-export async function withAuth(
-  handler: (req: AuthenticatedRequest) => Promise<NextResponse>
+export function withAuth(
+  handler: (req: AuthenticatedRequest, context: any) => Promise<NextResponse>
 ) {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest, context: any) => {
     try {
       // Extract token from Authorization header
       const authHeader = req.headers.get('authorization');
@@ -40,8 +54,8 @@ export async function withAuth(
         );
       }
 
-      // Fetch user from database
-      const user = await prisma.user.findUnique({
+      // Fetch or create user in database
+      let user = await prisma.user.findUnique({
         where: { firebaseUid: decodedToken.uid },
         select: {
           id: true,
@@ -51,18 +65,31 @@ export async function withAuth(
         },
       });
 
+      // Auto-sync user if not exists
       if (!user) {
-        return NextResponse.json(
-          { error: 'User not found in database' },
-          { status: 404 }
-        );
+        const email = decodedToken.email || `${decodedToken.uid}@firebase.local`;
+        user = await prisma.user.create({
+          data: {
+            firebaseUid: decodedToken.uid,
+            email,
+            name: decodedToken.name || email.split('@')[0],
+            role: 'USER',
+          },
+          select: {
+            id: true,
+            firebaseUid: true,
+            email: true,
+            role: true,
+          },
+        });
       }
 
       // Attach user to request
       const authenticatedReq = req as AuthenticatedRequest;
       authenticatedReq.user = user;
+      authenticatedReq.decodedToken = decodedToken;
 
-      return handler(authenticatedReq);
+      return handler(authenticatedReq, context);
     } catch (error) {
       console.error('Auth middleware error:', error);
       return NextResponse.json(
@@ -77,16 +104,29 @@ export async function withAuth(
  * Middleware to verify user is an admin
  * Use this in API routes that require admin access
  */
-export async function withAdmin(
+export function withAdmin(
   handler: (req: AuthenticatedRequest) => Promise<NextResponse>
 ) {
-  return withAuth(async (req: AuthenticatedRequest) => {
-    if (req.user?.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
-    }
-    return handler(req);
-  });
+  return async (req: NextRequest) => {
+    // First authenticate
+    const authMiddleware = withAuth(async (authReq: AuthenticatedRequest) => {
+      // Then check admin role
+      // Allow if role is ADMIN OR if email is admin@admin.com (fallback)
+      // OR if the token claims say ADMIN
+      const tokenRole = authReq.decodedToken?.role;
+      const isAdminByDb = authReq.user?.role === 'ADMIN';
+      const isAdminByEmail = authReq.user?.email === 'admin@admin.com';
+      const isAdminByToken = tokenRole === 'ADMIN' || tokenRole === 'Admin';
+      
+      if (!isAdminByDb && !isAdminByEmail && !isAdminByToken) {
+        return NextResponse.json(
+          { error: 'Admin access required' },
+          { status: 403 }
+        );
+      }
+      return handler(authReq);
+    });
+    
+    return authMiddleware(req);
+  };
 }

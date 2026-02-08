@@ -1,8 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+
+interface User extends FirebaseUser {
+  subscriptionStatus?: string;
+  role?: string;
+  plan?: 'Free' | 'Premium';
+}
 
 interface AuthContextType {
   user: User | null;
@@ -19,8 +25,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // 1. Get Token and Custom Claims (Role)
+          const tokenResult = await firebaseUser.getIdTokenResult();
+          const role = tokenResult.claims.role as string;
+
+          // 2. Fetch Plan from Database
+          // We use the token we just got to authenticate the request
+          const token = tokenResult.token;
+
+          let plan: 'Free' | 'Premium' = 'Free';
+
+          try {
+            const res = await fetch('/api/auth/me', {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user && data.user.plan) {
+                plan = data.user.plan;
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch user plan", err);
+          }
+
+          const userWithData = firebaseUser as User;
+          userWithData.role = role;
+          userWithData.plan = plan;
+
+          setUser(userWithData);
+        } catch (e) {
+          console.error("Auth initialization error", e);
+          setUser(firebaseUser as User);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -35,3 +81,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+

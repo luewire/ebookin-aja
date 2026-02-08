@@ -37,29 +37,29 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       console.log('Starting logout process...');
-      
+
       // Close menus immediately
       setShowProfileMenu(false);
       setShowMobileMenu(false);
-      
+
       // Sign out from Firebase
       await signOut(auth);
-      
+
       // Clear localStorage (except dark mode preference)
       const darkMode = localStorage.getItem('darkMode');
       localStorage.clear();
       if (darkMode) {
         localStorage.setItem('darkMode', darkMode);
       }
-      
+
       // Clear session storage
       sessionStorage.clear();
-      
+
       console.log('Logout complete, redirecting...');
-      
+
       // Redirect to home
       router.push('/');
-      
+
     } catch (error) {
       console.error('Error during logout:', error);
       // Force reload anyway
@@ -154,7 +154,7 @@ export default function Navbar() {
                         </svg>
                         Profile
                       </Link>
-                      {user.email === 'admin@admin.com' && (
+                      {(user.email === 'admin@admin.com' || user.role === 'ADMIN' || user.role === 'Admin') && (
                         <Link
                           href="/admin"
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:pl-5 transition-all duration-200 group"
@@ -231,7 +231,7 @@ export default function Navbar() {
                 <Link href="/profile" className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setShowMobileMenu(false)}>
                   Profile
                 </Link>
-                {user.email === 'admin@admin.com' && (
+                {(user.email === 'admin@admin.com' || user.role === 'ADMIN' || user.role === 'Admin') && (
                   <Link href="/admin" className="block px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors" onClick={() => setShowMobileMenu(false)}>
                     Admin Panel
                   </Link>

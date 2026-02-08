@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { updateProfile } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { auth, storage } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,6 +17,7 @@ export default function SettingsPage() {
   const [readingGoal, setReadingGoal] = useState('25');
   const [profileImage, setProfileImage] = useState<string | null>(null); // Preview URL
   const [selectedFile, setSelectedFile] = useState<File | null>(null); // Actual file to upload
+  const [uploadError, setUploadError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -57,26 +57,61 @@ export default function SettingsPage() {
     
     setLoading(true);
     try {
-      let photoURL = profileImage;
+      let photoURL = user.photoURL; // Keep existing photo URL
 
-      // If a new file is selected, upload it to Firebase Storage
-      if (selectedFile) {
-        const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        const snapshot = await uploadBytes(storageRef, selectedFile);
-        photoURL = await getDownloadURL(snapshot.ref);
+      // Only upload if a NEW file is selected
+      if (selectedFile && selectedFile instanceof File) {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Not authenticated');
+
+        const formData = new FormData();
+        formData.append('photo', selectedFile); // Changed from 'image' to 'photo'
+
+        const response = await fetch('/api/user/profile-photo', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.details || error.error || 'Upload failed');
+        }
+
+        const data = await response.json();
+        photoURL = data.photoUrl;
+        
+        // Update local preview immediately
+        setProfileImage(photoURL);
+      } else if (profileImage === null) {
+        // User removed the photo
+        photoURL = null;
       }
 
-      // Update Firebase profile
-      await updateProfile(user, {
-        displayName: username || user.email?.split('@')[0] || '',
-        photoURL: photoURL || null
-      });
+      // Update Firebase profile (this will trigger navbar/profile refresh)
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: username || user.email?.split('@')[0] || '',
+          photoURL: photoURL
+        });
+        
+        // Force reload the user to refresh everywhere
+        await auth.currentUser.reload();
+      }
 
       // TODO: Save bio and reading_goal to database via API route
       
       setSuccessMessage('Profile updated successfully!');
       setIsError(false);
       setShowSuccessMessage(true);
+      setSelectedFile(null);
+      setUploadError('');
+      
+      // Reload page to refresh all components with new photo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error: any) {
       console.error('Error saving profile:', error);
@@ -132,27 +167,76 @@ export default function SettingsPage() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setSuccessMessage('Image size should be less than 5MB');
-        setIsError(true);
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 3000);
-        return;
-      }
-      
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setUploadError('');
+
+    // Validate size (max 2MB for Cloudinary)
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadError(`❌ File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Max 2MB allowed.`);
+      e.target.value = '';
+      return;
     }
+
+    // Validate type
+    const allowedTypes = ['image/webp', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('❌ Invalid format. Use WebP, JPEG, or PNG');
+      e.target.value = '';
+      return;
+    }
+
+    // Show file info
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const format = file.type.split('/')[1].toUpperCase();
+    if (file.type === 'image/webp') {
+      setUploadError(`✅ ${sizeKB}KB - ${format} format (optimal!)`);
+    } else {
+      setUploadError(`ℹ️ ${sizeKB}KB - ${format} format. WebP recommended for better compression.`);
+    }
+
+    setSelectedFile(file);
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfileImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    if (!user) return;
+
+    // If there's a photo URL from Cloudinary, delete it via API
+    if (profileImage && profileImage.includes('cloudinary.com')) {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+          await fetch('/api/user/profile-photo', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to delete photo:', error);
+      }
+    }
+
     setProfileImage(null);
     setSelectedFile(null);
+    setUploadError('');
+
+    // Update Firebase profile to remove photo
+    try {
+      await updateProfile(user, {
+        displayName: username || user.email?.split('@')[0] || '',
+        photoURL: null
+      });
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+    }
   };
 
   return (
@@ -388,32 +472,54 @@ export default function SettingsPage() {
                 {/* Profile Picture */}
                 <div className="mb-8">
                   <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Profile Picture</label>
-                  <div className="flex items-center gap-4">
-                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                  <div className="flex items-start gap-4">
+                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden flex-shrink-0">
                       {profileImage ? (
                         <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
                       ) : (
                         username.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()
                       )}
                     </div>
-                    <div className="flex gap-3">
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                        <span className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-                          Upload New
-                        </span>
-                      </label>
-                      <button
-                        onClick={handleRemoveImage}
-                        className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
-                      >
-                        Remove
-                      </button>
+                    <div className="flex-1">
+                      <div className="flex gap-3 mb-3">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/webp,image/jpeg,image/jpg,image/png"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            id="profile-photo-upload"
+                          />
+                          <span className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Upload New
+                          </span>
+                        </label>
+                        <button
+                          onClick={handleRemoveImage}
+                          className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3">
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          <strong>Requirements:</strong> Max 2MB • WebP (recommended), JPEG, PNG • 400x400px optimal
+                        </p>
+                      </div>
+                      {uploadError && (
+                        <div className={`mt-2 p-2 rounded-lg text-xs ${
+                          uploadError.startsWith('✅') || uploadError.startsWith('✓') 
+                            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                            : uploadError.startsWith('❌') 
+                            ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                            : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        }`}>
+                          {uploadError}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

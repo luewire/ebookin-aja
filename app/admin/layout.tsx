@@ -9,6 +9,8 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
   const { user, loading } = useAuth();
   const router = useRouter();
   const [darkMode, setDarkMode] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -19,19 +21,48 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
   }, []);
 
   useEffect(() => {
-    if (!loading) {
+    const checkAccess = async () => {
+      if (loading) return;
+
       if (!user) {
         router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
+        return;
       }
-    }
+
+      // Always allow super admin
+      if (user.email === 'admin@admin.com') {
+        setIsAuthorized(true);
+        setCheckingAuth(false);
+        return;
+      }
+
+      // Check for ADMIN custom claim logic
+      try {
+        // Force token refresh to get latest claims
+        const tokenResult = await user.getIdTokenResult(true);
+        const role = tokenResult.claims.role;
+
+        if (role === 'ADMIN' || role === 'Admin') {
+          setIsAuthorized(true);
+        } else {
+          console.log('User role not authorized:', role);
+          router.push('/unauthorized');
+        }
+      } catch (error) {
+        console.error('Error checking admin permissions:', error);
+        router.push('/unauthorized');
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAccess();
   }, [user, loading, router]);
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    
+
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -41,7 +72,7 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
     }
   };
 
-  if (loading || !user || user.email !== 'admin@admin.com') {
+  if (loading || checkingAuth || !isAuthorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         {/* Skeleton Loading Animation */}
@@ -93,8 +124,8 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Sidebar - Tidak akan reload */}
       <AdminSidebar />
-      
-      <div className="ml-64">
+
+      <div className="ml-20">
         {/* Top Header - Tidak akan reload */}
         <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
           <div className="px-8 py-4 flex items-center justify-between">
@@ -104,7 +135,7 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
                 Real-time platform performance and reading metrics across your library.
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Dark Mode Toggle */}
               <button

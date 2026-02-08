@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 
 interface Banner {
@@ -15,27 +14,23 @@ interface Banner {
   imageUrl: string | null;
   priority: number;
   isActive: boolean;
-  createdAt: string;
 }
 
 export default function ManageBannersPage() {
   const { user, loading: authLoading } = useAuth();
-  const [darkMode, setDarkMode] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
     ctaLabel: '',
     ctaLink: '',
-    imageUrl: '',
   });
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const router = useRouter();
 
   const getAuthToken = async () => {
@@ -44,19 +39,9 @@ export default function ManageBannersPage() {
   };
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
-
-  useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
       } else {
         fetchBanners();
       }
@@ -69,18 +54,14 @@ export default function ManageBannersPage() {
       if (!token) throw new Error('Not authenticated');
 
       const response = await fetch('/api/admin/banners', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch banners');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch banners');
+      
       const data = await response.json();
       setBanners(data.banners || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching banners:', error);
       setBanners([]);
     } finally {
@@ -88,248 +69,120 @@ export default function ManageBannersPage() {
     }
   };
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  const handleDragStart = (id: string) => {
-    setDraggedId(id);
-  };
-
-  const handleDragOver = async (e: React.DragEvent, id: string) => {
-    e.preventDefault();
-    if (draggedId === null || draggedId === id) return;
-
-    const newBanners = [...banners];
-    const draggedIndex = newBanners.findIndex(b => b.id === draggedId);
-    const targetIndex = newBanners.findIndex(b => b.id === id);
-
-    const [removed] = newBanners.splice(draggedIndex, 1);
-    newBanners.splice(targetIndex, 0, removed);
-
-    // Update priority positions (higher number = higher priority)
-    const updatedBanners = newBanners.map((b, i) => ({ ...b, priority: newBanners.length - i }));
-    setBanners(updatedBanners);
-
-    // Update in database
-    try {
-      const token = await getAuthToken();
-      if (!token) return;
-
-      // Update each banner's priority
-      for (const banner of updatedBanners) {
-        await fetch('/api/admin/banners', {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: banner.id,
-            priority: banner.priority
-          })
-        });
-      }
-    } catch (error) {
-      console.error('Error updating banner order:', error);
-      fetchBanners(); // Revert on error
-    }
-  };
-
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    try {
-      const token = await getAuthToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const response = await fetch('/api/admin/banners', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id,
-          isActive: !currentStatus
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle banner status');
-      }
-
-      fetchBanners();
-    } catch (error: any) {
-      console.error('Error toggling banner status:', error);
-      alert('Error: ' + error.message);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
-
-    try {
-      const token = await getAuthToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const response = await fetch(`/api/admin/banners?id=${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete banner');
-      }
-
-      fetchBanners();
-    } catch (error: any) {
-      console.error('Error deleting banner:', error);
-      alert('Error: ' + error.message);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset error
-    setUploadError('');
+    setUploadMessage('');
 
-    // Validate file size (max 2MB)
-    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    // Validate size
+    const maxSize = 2 * 1024 * 1024; // 2MB
     if (file.size > maxSize) {
-      setUploadError('File size must be less than 2MB');
+      setUploadMessage(`❌ File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Max 2MB allowed.`);
       e.target.value = '';
       return;
     }
 
-    // Check file type - recommend .webp
+    // Validate type
     const allowedTypes = ['image/webp', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      setUploadError('Please use WebP, JPEG, JPG, or PNG format');
+      setUploadMessage('❌ Invalid format. Use WebP, JPEG, or PNG');
       e.target.value = '';
       return;
     }
 
-    // Show warning if not .webp
-    if (file.type !== 'image/webp') {
-      setUploadError('⚠️ For better performance, we recommend using .webp format');
+    // Show info
+    const sizeKB = (file.size / 1024).toFixed(0);
+    const format = file.type.split('/')[1].toUpperCase();
+    if (file.type === 'image/webp') {
+      setUploadMessage(`✅ ${sizeKB}KB - ${format} format (optimal!)`);
+    } else {
+      setUploadMessage(`ℹ️ ${sizeKB}KB - ${format} format. WebP recommended for better compression.`);
     }
 
     setSelectedFile(file);
-    await uploadImage(file);
   };
 
-  const uploadImage = async (file: File) => {
-    setUploadingImage(true);
-    setUploadError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      setUploadMessage('❌ Title is required');
+      return;
+    }
+
+    setUploading(true);
+    setUploadMessage('');
 
     try {
       const token = await getAuthToken();
       if (!token) throw new Error('Not authenticated');
 
       const formDataToSend = new FormData();
-      formDataToSend.append('file', file);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formDataToSend
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to upload image');
-      }
-
-      const data = await response.json();
-      setFormData(prev => ({ ...prev, imageUrl: data.url }));
-      setUploadError('✓ Image uploaded successfully!');
-      setTimeout(() => setUploadError(''), 3000);
-    } catch (error: any) {
-      console.error('Upload failed:', error);
-      setUploadError(error.message || 'Failed to upload image');
-    } finally {
-      setUploadingImage(false);
-      setSelectedFile(null);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      const token = await getAuthToken();
-      if (!token) throw new Error('Not authenticated');
-
-      const payload = {
-        title: formData.title,
-        subtitle: formData.subtitle || null,
-        ctaLabel: formData.ctaLabel || null,
-        ctaLink: formData.ctaLink || null,
-        imageUrl: formData.imageUrl || null,
-      };
+      formDataToSend.append('title', formData.title);
+      if (formData.subtitle) formDataToSend.append('subtitle', formData.subtitle);
+      if (formData.ctaLabel) formDataToSend.append('ctaLabel', formData.ctaLabel);
+      if (formData.ctaLink) formDataToSend.append('ctaLink', formData.ctaLink);
+      if (selectedFile) formDataToSend.append('image', selectedFile);
 
       if (editingBanner) {
-        // Update existing banner
+        formDataToSend.append('id', editingBanner.id);
         const response = await fetch('/api/admin/banners', {
           method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            id: editingBanner.id,
-            ...payload
-          })
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formDataToSend
         });
-
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || 'Failed to update banner');
+          throw new Error(error.details || error.error || 'Failed to update');
         }
       } else {
-        // Create new banner
-        const maxPriority = banners.length > 0 ? Math.max(...banners.map(b => b.priority)) : 0;
+        formDataToSend.append('isActive', 'true');
         const response = await fetch('/api/admin/banners', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ...payload,
-            priority: maxPriority + 1,
-            isActive: true
-          })
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formDataToSend
         });
-
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || 'Failed to create banner');
+          throw new Error(error.details || error.error || 'Failed to create');
         }
       }
 
       setShowModal(false);
       setEditingBanner(null);
-      setFormData({ title: '', subtitle: '', ctaLabel: '', ctaLink: '', imageUrl: '' });
+      setFormData({ title: '', subtitle: '', ctaLabel: '', ctaLink: '' });
+      setSelectedFile(null);
+      setUploadMessage('');
       fetchBanners();
     } catch (error: any) {
-      console.error('Error saving banner:', error);
-      alert('Error saving banner: ' + error.message);
+      setUploadMessage('❌ ' + error.message);
+    } finally {
+      setUploading(false);
     }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this banner?')) return;
+
+    try {
+      const token = await getAuthToken();
+      await fetch(`/api/admin/banners?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      fetchBanners();
+    } catch (error) {
+      alert('Failed to delete banner');
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingBanner(null);
+    setFormData({ title: '', subtitle: '', ctaLabel: '', ctaLink: '' });
+    setSelectedFile(null);
+    setUploadMessage('');
+    setShowModal(true);
   };
 
   const openEditModal = (banner: Banner) => {
@@ -339,155 +192,244 @@ export default function ManageBannersPage() {
       subtitle: banner.subtitle || '',
       ctaLabel: banner.ctaLabel || '',
       ctaLink: banner.ctaLink || '',
-      imageUrl: banner.imageUrl || '',
     });
-    setShowModal(true);
-  };
-
-  const openCreateModal = () => {
-    setEditingBanner(null);
-    setFormData({ title: '', subtitle: '', ctaLabel: '', ctaLink: '', imageUrl: '' });
     setSelectedFile(null);
-    setUploadError('');
+    setUploadMessage('');
     setShowModal(true);
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-indigo-600"></div>
+    return <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+        <p className="text-slate-600 dark:text-slate-400">Loading banners...</p>
       </div>
-    );
+    </div>;
   }
 
   return (
-    <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Manage Hero Banners</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Configure and organize the hero banners displayed on your homepage.
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Manage Banners</h1>
+            <p className="mt-2 text-slate-600 dark:text-slate-400">Upload and manage promotional banners</p>
           </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Preview Site
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Publish Changes
-            </button>
-          </div>
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Banner
+          </button>
         </div>
 
-        {/* Banners List - no setupError needed anymore */}
+        {/* Banners List */}
         <div className="space-y-4">
           {banners.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center">
-              <svg className="mx-auto h-12 w-12 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
+              <svg className="mx-auto h-16 w-16 text-slate-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-slate-600 dark:text-slate-400 mb-4">No banners yet. Create your first banner to get started.</p>
-              <button 
-                onClick={openCreateModal}
-                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+              <p className="text-slate-600 dark:text-slate-400 mb-4">No banners yet</p>
+              <button onClick={openCreateModal} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
                 Create First Banner
               </button>
             </div>
           ) : (
             banners.map((banner) => (
-              <div
-                key={banner.id}
-                draggable
-                onDragStart={() => handleDragStart(banner.id)}
-                onDragOver={(e) => handleDragOver(e, banner.id)}
-                className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 hover:shadow-lg transition-shadow cursor-move"
-              >
+              <div key={banner.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 hover:shadow-lg transition-shadow">
                 <div className="flex items-start gap-4">
-                  {/* Drag Handle */}
-                  <div className="flex flex-col gap-1 pt-1 text-slate-400">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="8" cy="6" r="1.5" />
-                      <circle cx="16" cy="6" r="1.5" />
-                      <circle cx="8" cy="12" r="1.5" />
-                      <circle cx="16" cy="12" r="1.5" />
-                      <circle cx="8" cy="18" r="1.5" />
-                      <circle cx="16" cy="18" r="1.5" />
-                    </svg>
-                  </div>
-
-                  {/* Banner Preview Image */}
                   {banner.imageUrl && (
-                    <div className="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
-                    </div>
+                    <img src={banner.imageUrl} alt={banner.title} className="w-32 h-20 rounded-lg object-cover flex-shrink-0" />
                   )}
-
-                  {/* Banner Info */}
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-slate-900 dark:text-white">{banner.title}</h3>
-                          <button
-                            onClick={() => handleToggleActive(banner.id, banner.isActive)}
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                              banner.isActive
-                                ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                            }`}
-                          >
-                            {banner.isActive ? 'Active' : 'Inactive'}
-                          </button>
-                        </div>
-                        {banner.subtitle && <p className="text-sm text-slate-500 dark:text-slate-400">{banner.subtitle}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditModal(banner)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(banner.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                        >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {banner.ctaLabel && banner.ctaLink && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                          <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                          </svg>
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{banner.ctaLabel}</span>
-                        </div>
-                        <span className="text-slate-400">→</span>
-                        <span className="text-indigo-600 dark:text-indigo-400">{banner.ctaLink}</span>
+                    <h3 className="font-semibold text-slate-900 dark:text-white">{banner.title}</h3>
+                    {banner.subtitle && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{banner.subtitle}</p>}
+                    {banner.ctaLabel && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400">
+                        <span>🔗 {banner.ctaLabel}</span>
+                        {banner.ctaLink && <span className="text-slate-400">→ {banner.ctaLink}</span>}
                       </div>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => openEditModal(banner)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button onClick={() => handleDelete(banner.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
             ))
           )}
         </div>
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {editingBanner ? 'Edit Banner' : 'Create Banner'}
+                  </h2>
+                  <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {/* Image Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                    Banner Image {editingBanner && '(leave empty to keep current image)'}
+                  </label>
+                  
+                  <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/webp,image/jpeg,image/jpg,image/png"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="banner-upload"
+                    />
+                    <label htmlFor="banner-upload" className="cursor-pointer">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+                          <svg className="h-8 w-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-indigo-600 dark:text-indigo-400 font-medium">Click to upload banner image</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            {selectedFile ? selectedFile.name : 'or drag and drop'}
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Upload Info */}
+                  <div className="mt-3 bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-2">
+                    <div className="flex items-start gap-2 text-sm">
+                      <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-slate-600 dark:text-slate-300">
+                        <p className="font-medium mb-1">Image Requirements:</p>
+                        <ul className="space-y-1 text-xs">
+                          <li>• <strong>Format:</strong> WebP (recommended), JPEG, PNG</li>
+                          <li>• <strong>Max Size:</strong> 2MB</li>
+                          <li>• <strong>Recommended Size:</strong> 1920 x 600 pixels</li>
+                          <li>• <strong>Why WebP?</strong> 25-35% smaller file size, better performance</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {uploadMessage && (
+                    <div className={`mt-3 p-3 rounded-lg text-sm ${
+                      uploadMessage.startsWith('✅') || uploadMessage.startsWith('✓') 
+                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                        : uploadMessage.startsWith('❌') 
+                        ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        : 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    }`}>
+                      {uploadMessage}
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Fields */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Title *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="e.g., Summer Sale 2026"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Subtitle</label>
+                  <input
+                    type="text"
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="e.g., Get 50% off all ebooks"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">CTA Label</label>
+                    <input
+                      type="text"
+                      value={formData.ctaLabel}
+                      onChange={(e) => setFormData({...formData, ctaLabel: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="e.g., Shop Now"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">CTA Link</label>
+                    <input
+                      type="text"
+                      value={formData.ctaLink}
+                      onChange={(e) => setFormData({...formData, ctaLink: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="e.g., /browse"
+                    />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {uploading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>{editingBanner ? 'Update Banner' : 'Create Banner'}</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

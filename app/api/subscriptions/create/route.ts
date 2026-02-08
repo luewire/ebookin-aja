@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/auth-middleware';
-import { createSnapToken, getPlanDetails } from '@/lib/midtrans';
+import { createPayment, getPlanDetails } from '@/lib/ipaymu';
 import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/subscriptions/create
- * Create a new subscription payment
+ * Create a new subscription payment with iPaymu
  */
 async function createHandler(req: AuthenticatedRequest) {
   try {
@@ -70,42 +70,51 @@ async function createHandler(req: AuthenticatedRequest) {
       },
     });
 
-    // Get user name for Midtrans
+    // Get user name for iPaymu
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
     });
 
-    // Create Midtrans Snap token
-    const snapResponse = await createSnapToken({
+    // Create iPaymu payment
+    const paymentResponse = await createPayment({
       orderId,
-      grossAmount: planDetails.price,
+      amount: planDetails.price,
       customerDetails: {
+        name: user?.name || userEmail.split('@')[0],
         email: userEmail,
-        firstName: user?.name || userEmail.split('@')[0],
       },
-      itemDetails: [
-        {
-          id: planName,
-          name: planDetails.name,
-          price: planDetails.price,
-          quantity: 1,
-        },
-      ],
+      product: [planDetails.name],
+      qty: [1],
+      price: [planDetails.price],
     });
+
+    console.log('[API] iPaymu payment response:', paymentResponse);
+
+    // iPaymu might return Data or data, Url or url
+    const paymentData = paymentResponse.Data || paymentResponse.data;
+    const paymentUrl = paymentData?.Url || paymentData?.url;
+    const sessionId = paymentData?.SessionID || paymentData?.sessionId;
+
+    if (!paymentUrl) {
+      console.error('[API] No payment URL in response:', paymentResponse);
+      throw new Error('Payment URL not received from iPaymu');
+    }
 
     return NextResponse.json(
       {
-        snapToken: snapResponse.token,
+        paymentUrl,
+        sessionId,
         orderId,
         grossAmount: planDetails.price,
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create subscription error:', error);
+    console.error('Error details:', error.message, error.stack);
     return NextResponse.json(
-      { error: 'Failed to create subscription payment' },
+      { error: error.message || 'Failed to create subscription payment' },
       { status: 500 }
     );
   }

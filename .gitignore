@@ -46,3 +46,9 @@ secrets.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploads
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/ebooks/.gitkeep
+!/public/uploads/banners/.gitkeep

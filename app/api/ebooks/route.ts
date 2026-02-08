@@ -21,7 +21,13 @@ export async function GET(req: NextRequest) {
     const where: any = { isActive: true };
     
     if (category) {
-      where.category = category;
+      // Find category by name
+      const categoryRecord = await prisma.category.findFirst({
+        where: { name: category }
+      });
+      if (categoryRecord) {
+        where.categoryId = categoryRecord.id;
+      }
     }
     
     if (search) {
@@ -47,7 +53,14 @@ export async function GET(req: NextRequest) {
           author: true,
           description: true,
           coverUrl: true,
-          category: true,
+          categoryId: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true
+            }
+          },
           isPremium: true,
           // Don't expose pdfUrl publicly - handle in individual ebook endpoint
         },
@@ -57,7 +70,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        ebooks,
+        ebooks: ebooks.map((ebook: any) => ({
+          ...ebook,
+          category: ebook.category.name // Return category name for backward compatibility
+        })),
         pagination: {
           page,
           limit,

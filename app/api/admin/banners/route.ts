@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin, AuthenticatedRequest } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/prisma';
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+  replaceImage,
+  getFileFromFormData,
+  createUploadError,
+} from '@/lib/file-upload';
 
 /**
  * GET /api/admin/banners
@@ -24,20 +31,30 @@ async function getHandler(req: AuthenticatedRequest) {
 
 /**
  * POST /api/admin/banners
- * Create a new banner
+ * Create a new banner with image upload
+ * 
+ * Accepts: FormData with fields:
+ * - title (required)
+ * - subtitle (optional)
+ * - ctaLabel (optional)
+ * - ctaLink (optional)
+ * - image (File, optional - max 2MB, jpg/png/webp)
+ * - isActive (optional, default: true)
+ * - priority (optional, default: 0)
  */
 async function postHandler(req: AuthenticatedRequest) {
   try {
-    const {
-      title,
-      subtitle,
-      ctaLabel,
-      ctaLink,
-      imageUrl,
-      isActive,
-      priority,
-    } = await req.json();
+    const formData = await req.formData();
+    
+    // Extract text fields
+    const title = formData.get('title') as string;
+    const subtitle = formData.get('subtitle') as string | null;
+    const ctaLabel = formData.get('ctaLabel') as string | null;
+    const ctaLink = formData.get('ctaLink') as string | null;
+    const isActive = formData.get('isActive') === 'false' ? false : true;
+    const priority = parseInt(formData.get('priority') as string) || 0;
 
+    // Validation
     if (!title) {
       return NextResponse.json(
         { error: 'title is required' },
@@ -45,6 +62,33 @@ async function postHandler(req: AuthenticatedRequest) {
       );
     }
 
+    // Handle image upload (optional)
+    let imageUrl: string | null = null;
+    const imageFile = getFileFromFormData(formData, 'image');
+
+    if (imageFile) {
+      try {
+        const uploadResult = await uploadToCloudinary(imageFile, {
+          folder: 'banners',
+          maxSizeMB: 2,
+          transformation: {
+            width: 1920,
+            height: 600,
+            crop: 'fill',
+            quality: 'auto',
+          },
+        });
+
+        imageUrl = uploadResult.secure_url;
+      } catch (uploadError: any) {
+        return NextResponse.json(
+          createUploadError(uploadError, 400),
+          { status: 400 }
+        );
+      }
+    }
+
+    // Create banner in database
     const banner = await prisma.banner.create({
       data: {
         title,
@@ -52,8 +96,8 @@ async function postHandler(req: AuthenticatedRequest) {
         ctaLabel,
         ctaLink,
         imageUrl,
-        isActive: isActive ?? true,
-        priority: priority ?? 0,
+        isActive,
+        priority,
       },
     });
 
@@ -79,12 +123,25 @@ async function postHandler(req: AuthenticatedRequest) {
 
 /**
  * PATCH /api/admin/banners
- * Update a banner
+ * Update a banner (with optional image replacement)
+ * 
+ * Accepts: FormData with fields:
+ * - id (required)
+ * - title (optional)
+ * - subtitle (optional)
+ * - ctaLabel (optional)
+ * - ctaLink (optional)
+ * - image (File, optional - replaces existing image)
+ * - isActive (optional)
+ * - priority (optional)
  */
 async function patchHandler(req: AuthenticatedRequest) {
   try {
-    const { id, ...updates } = await req.json();
-
+    const formData = await req.formData();
+    
+    // Get banner ID
+    const id = formData.get('id') as string;
+    
     if (!id) {
       return NextResponse.json(
         { error: 'banner id is required' },
@@ -92,6 +149,60 @@ async function patchHandler(req: AuthenticatedRequest) {
       );
     }
 
+    // Get existing banner
+    const existingBanner = await prisma.banner.findUnique({
+      where: { id },
+      select: { imageUrl: true, title: true },
+    });
+
+    if (!existingBanner) {
+      return NextResponse.json(
+        { error: 'Banner not found' },
+        { status: 404 }
+      );
+    }
+
+    // Prepare update data
+    const updates: any = {};
+    
+    if (formData.has('title')) updates.title = formData.get('title') as string;
+    if (formData.has('subtitle')) updates.subtitle = formData.get('subtitle') as string | null;
+    if (formData.has('ctaLabel')) updates.ctaLabel = formData.get('ctaLabel') as string | null;
+    if (formData.has('ctaLink')) updates.ctaLink = formData.get('ctaLink') as string | null;
+    if (formData.has('isActive')) updates.isActive = formData.get('isActive') === 'true';
+    if (formData.has('priority')) updates.priority = parseInt(formData.get('priority') as string);
+
+    // Handle image replacement
+    const imageFile = getFileFromFormData(formData, 'image');
+    
+    if (imageFile) {
+      try {
+        // Upload new image and delete old one
+        const uploadResult = await replaceImage(
+          imageFile,
+          existingBanner.imageUrl,
+          {
+            folder: 'banners',
+            maxSizeMB: 2,
+            transformation: {
+              width: 1920,
+              height: 600,
+              crop: 'fill',
+              quality: 'auto',
+            },
+          }
+        );
+
+        updates.imageUrl = uploadResult.secure_url;
+      } catch (uploadError: any) {
+        return NextResponse.json(
+          createUploadError(uploadError, 400),
+          { status: 400 }
+        );
+      }
+    }
+
+    // Update banner
     const banner = await prisma.banner.update({
       where: { id },
       data: updates,
@@ -119,7 +230,7 @@ async function patchHandler(req: AuthenticatedRequest) {
 
 /**
  * DELETE /api/admin/banners
- * Delete a banner
+ * Delete a banner and its image from Cloudinary
  */
 async function deleteHandler(req: AuthenticatedRequest) {
   try {
@@ -133,9 +244,10 @@ async function deleteHandler(req: AuthenticatedRequest) {
       );
     }
 
+    // Get banner with image URL
     const banner = await prisma.banner.findUnique({
       where: { id },
-      select: { title: true },
+      select: { title: true, imageUrl: true },
     });
 
     if (!banner) {
@@ -145,9 +257,20 @@ async function deleteHandler(req: AuthenticatedRequest) {
       );
     }
 
+    // Delete from database first
     await prisma.banner.delete({
       where: { id },
     });
+
+    // Delete image from Cloudinary (if exists)
+    if (banner.imageUrl) {
+      try {
+        await deleteFromCloudinary(banner.imageUrl);
+      } catch (error) {
+        // Log but don't fail the operation
+        console.error('Failed to delete banner image from Cloudinary:', error);
+      }
+    }
 
     // Log admin action
     await prisma.adminEvent.create({

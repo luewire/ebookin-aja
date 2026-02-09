@@ -3,14 +3,11 @@ import { withAuth, AuthenticatedRequest } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/prisma';
 
 async function handler(req: AuthenticatedRequest) {
-    const fs = require('fs');
-    const logFile = 'follow_api_error.log';
 
     try {
         const { followingId } = await req.json();
         const followerId = req.user!.id;
 
-        fs.appendFileSync(logFile, `[${new Date().toISOString()}] Follow attempt: follower=${followerId}, following=${followingId}\n`);
 
         // Use a fresh PrismaClient to avoid staleness issues in dev environment
         const { PrismaClient } = require('@prisma/client');
@@ -26,7 +23,6 @@ async function handler(req: AuthenticatedRequest) {
             }
 
             // NEW ROBUST RAW SQL CORE (Bypasses stale Prisma client)
-            fs.appendFileSync(logFile, `[${new Date().toISOString()}] Using RAW SQL for follow check...\n`);
 
             // 1. Check if already following
             const existingFollows: any[] = await localPrisma.$queryRawUnsafe(
@@ -40,7 +36,6 @@ async function handler(req: AuthenticatedRequest) {
                     `DELETE FROM "Follow" WHERE "followerId" = $1 AND "followingId" = $2`,
                     followerId, followingId
                 );
-                fs.appendFileSync(logFile, `[${new Date().toISOString()}] Raw Success: Unfollowed ${followingId}\n`);
                 return NextResponse.json({ status: 'unfollowed' });
             } else {
                 // Action: Follow
@@ -85,7 +80,6 @@ async function handler(req: AuthenticatedRequest) {
                     );
                 }
 
-                fs.appendFileSync(logFile, `[${new Date().toISOString()}] Raw Success: Followed ${followingId} (Mutual: ${isMutual})\n`);
                 return NextResponse.json({
                     status: isMutual ? 'mutual' : 'followed'
                 });
@@ -94,7 +88,6 @@ async function handler(req: AuthenticatedRequest) {
             await localPrisma.$disconnect();
         }
     } catch (error: any) {
-        fs.appendFileSync(logFile, `[${new Date().toISOString()}] CRASH: ${error.message}\n${error.stack}\n`);
         console.error('Follow error:', error);
         return NextResponse.json({ error: 'Failed to toggle follow', details: error.message }, { status: 500 });
     }

@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -17,15 +16,36 @@ model User {
   role            UserRole          @default(USER)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  bio             String?
+  readingGoal     Int?              @default(25)
+  username        String?           @unique
+  favoriteGenre   String?
   annotations     Annotation[]
+  following       Follow[]          @relation("following")
+  followers       Follow[]          @relation("followers")
+  notifications   Notification[]
   readingLogs     ReadingLog[]
   readingProgress ReadingProgress[]
   readlist        Readlist[]
+  reviews         Review[]
   subscription    Subscription?
 
   @@index([firebaseUid])
   @@index([email])
+  @@index([username])
   @@index([role])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 model Subscription {
@@ -91,17 +111,18 @@ model Ebook {
   coverUrl        String?
   pdfUrl          String?
   publicId        String?
-  categoryId      Int
-  category        Category          @relation(fields: [categoryId], references: [id])
   isPremium       Boolean           @default(true)
   isActive        Boolean           @default(true)
   priority        Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  categoryId      Int
+  annotations     Annotation[]
+  category        Category          @relation(fields: [categoryId], references: [id])
   readingLogs     ReadingLog[]
   readingProgress ReadingProgress[]
   readlist        Readlist[]
-  annotations     Annotation[]
+  reviews         Review[]
 
   @@index([isActive])
   @@index([isPremium])
@@ -201,6 +222,39 @@ model Readlist {
   @@index([status])
 }
 
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  ebookId   String
+  rating    Int      @default(0)
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ebook     Ebook    @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ebookId])
+  @@index([userId])
+  @@index([ebookId])
+  @@index([rating])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String?
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -225,4 +279,12 @@ enum ReadlistStatus {
   WANT_TO_READ
   READING
   FINISHED
+}
+
+enum NotificationType {
+  FOLLOW
+  MUTUAL_FOLLOW
+  BOOK_RELEASE
+  AUTHOR_UPDATE
+  CATEGORY_UPDATE
 }

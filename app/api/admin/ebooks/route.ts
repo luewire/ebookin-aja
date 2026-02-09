@@ -95,11 +95,13 @@ async function getHandler(req: AuthenticatedRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Get ebooks error:', error);
+    const code = error && typeof error === 'object' && 'code' in error ? (error as { code?: string }).code : '';
+    const status = String(code).startsWith('P1') ? 503 : 500; // P1xxx = connection/schema
     return NextResponse.json(
-      { error: 'Failed to fetch ebooks' },
-      { status: 500 }
+      { error: status === 503 ? 'Service temporarily unavailable' : 'Failed to fetch ebooks' },
+      { status }
     );
   }
 }

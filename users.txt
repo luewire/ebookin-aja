@@ -1,0 +1,20 @@
+﻿[
+  {
+    "id": "cml9lxl2k0009f3d62id9xp1j",
+    "username": "admin",
+    "firebaseUid": "seCwPfT9TtUqsczA9rnnPkXyXjl2",
+    "email": "admin@admin.com"
+  },
+  {
+    "id": "cmldz76ju00002h91wn7tysy5",
+    "username": null,
+    "firebaseUid": "YK7xQy16T5Td8yhYCTvJqwTXDuR2",
+    "email": "bimozen22@gmail.com"
+  },
+  {
+    "id": "cmle3jvp00008zzsgwowb9iq8",
+    "username": "luewire",
+    "firebaseUid": "PqF92veJTANBmZaYVQPAsJdSxf83",
+    "email": "luewire@gmail.com"
+  }
+]

@@ -8,9 +8,10 @@ import { adminAuth } from '@/lib/firebase-admin';
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Verify admin authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -33,16 +34,15 @@ export async function PATCH(
       );
     }
 
-    const { id } = params;
     const categoryId = parseInt(id);
-    
+
     if (isNaN(categoryId)) {
       return NextResponse.json(
         { error: 'Invalid category ID' },
         { status: 400 }
       );
     }
-    
+
     const body = await req.json();
     const { name, isActive } = body;
 
@@ -136,9 +136,10 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Verify admin authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -161,9 +162,8 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
     const categoryId = parseInt(id);
-    
+
     if (isNaN(categoryId)) {
       return NextResponse.json(
         { error: 'Invalid category ID' },

@@ -47,13 +47,7 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
         orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        select: {
-          id: true,
-          title: true,
-          author: true,
-          description: true,
-          coverUrl: true,
-          categoryId: true,
+        include: {
           category: {
             select: {
               id: true,
@@ -61,19 +55,39 @@ export async function GET(req: NextRequest) {
               slug: true
             }
           },
-          isPremium: true,
-          // Don't expose pdfUrl publicly - handle in individual ebook endpoint
-        },
+          reviews: {
+            select: {
+              rating: true
+            }
+          }
+        }
       }),
       prisma.ebook.count({ where }),
     ]);
 
+    const ebooksWithRating = ebooks.map((ebook: any) => {
+      const totalRatings = ebook.reviews?.length || 0;
+      const avgRating = totalRatings > 0 
+        ? ebook.reviews.reduce((acc: number, rev: any) => acc + rev.rating, 0) / totalRatings 
+        : 0;
+
+      return {
+        id: ebook.id,
+        title: ebook.title,
+        author: ebook.author,
+        description: ebook.description,
+        coverUrl: ebook.coverUrl,
+        categoryId: ebook.categoryId,
+        isPremium: ebook.isPremium,
+        category: ebook.category.name,
+        avgRating: parseFloat(avgRating.toFixed(1)),
+        ratingCount: totalRatings
+      };
+    });
+
     return NextResponse.json(
       {
-        ebooks: ebooks.map((ebook: any) => ({
-          ...ebook,
-          category: ebook.category.name // Return category name for backward compatibility
-        })),
+        ebooks: ebooksWithRating,
         pagination: {
           page,
           limit,
@@ -83,11 +97,13 @@ export async function GET(req: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Get ebooks error:', error);
+    const code = error && typeof error === 'object' && 'code' in error ? (error as { code?: string }).code : '';
+    const status = String(code).startsWith('P1') ? 503 : 500; // P1xxx = connection/schema
     return NextResponse.json(
-      { error: 'Failed to fetch ebooks' },
-      { status: 500 }
+      { error: status === 503 ? 'Service temporarily unavailable' : 'Failed to fetch ebooks' },
+      { status }
     );
   }
 }

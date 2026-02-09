@@ -5,7 +5,7 @@ import { adminAuth } from '@/lib/firebase-admin';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const authHeader = request.headers.get('Authorization');
@@ -23,9 +23,10 @@ export async function GET(
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        const { id } = await params;
         const annotations = await prisma.annotation.findMany({
             where: {
-                ebookId: params.id,
+                ebookId: id,
                 userId: user.id,
             },
             orderBy: { createdAt: 'desc' },
@@ -40,7 +41,7 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const authHeader = request.headers.get('Authorization');
@@ -58,13 +59,14 @@ export async function POST(
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        const { id } = await params;
         const body = await request.json();
         const { cfiRange, text, type, color } = body;
 
         const annotation = await prisma.annotation.create({
             data: {
                 userId: user.id,
-                ebookId: params.id,
+                ebookId: id,
                 cfiRange,
                 text,
                 type,
@@ -81,7 +83,7 @@ export async function POST(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const authHeader = request.headers.get('Authorization');

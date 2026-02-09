@@ -1,8 +1,90 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/AuthProvider';
+import { formatDistanceToNow } from 'date-fns';
+
+interface OverviewData {
+  overview: {
+    totalUsers: { current: number; vsLastMonth: string };
+    totalBooksRead: { current: number; vsLastWeek: string };
+    activeSessions: { current: number };
+  };
+  recentEvents: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  health: {
+    status: string;
+    latency: string;
+    uptime: string;
+  };
+}
 
 export default function AdminPage() {
+  const { user } = useAuth();
+  const [data, setData] = useState<OverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchOverview = async () => {
+    try {
+      const token = await user?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/admin/overview', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch overview data');
+      const result = await response.json();
+      setData(result);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchOverview();
+      // Auto refresh every 30 seconds for real-time feel
+      const interval = setInterval(fetchOverview, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-64 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 animate-pulse" />
+          <div className="h-64 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400">
+        Error loading overview: {error}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
         {/* Title Section */}
@@ -23,12 +105,12 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                +12% vs last month
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${Number(data?.overview.totalUsers.vsLastMonth) >= 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'text-rose-600 bg-rose-50 dark:bg-rose-900/30'}`}>
+                {Number(data?.overview.totalUsers.vsLastMonth) >= 0 ? '+' : ''}{data?.overview.totalUsers.vsLastMonth}% vs last month
               </span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Total Registered Users</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">12,842</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{data?.overview.totalUsers.current.toLocaleString()}</p>
           </div>
 
           {/* Total Books Read */}
@@ -39,12 +121,12 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                +8.4% vs last week
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${Number(data?.overview.totalBooksRead.vsLastWeek) >= 0 ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : 'text-rose-600 bg-rose-50 dark:bg-rose-900/30'}`}>
+                {Number(data?.overview.totalBooksRead.vsLastWeek) >= 0 ? '+' : ''}{data?.overview.totalBooksRead.vsLastWeek}% vs last week
               </span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Total Books Read</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">45,210</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{data?.overview.totalBooksRead.current.toLocaleString()}</p>
           </div>
 
           {/* Active Reading Sessions */}
@@ -61,7 +143,7 @@ export default function AdminPage() {
               </span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Active Reading Sessions</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">1,402</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{data?.overview.activeSessions.current.toLocaleString()}</p>
           </div>
         </div>
 
@@ -72,65 +154,66 @@ export default function AdminPage() {
             <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Platform Events</h3>
-                <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View All Activity</button>
+                <Link href="/admin/activity" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View All Activity</Link>
               </div>
               
               <div className="space-y-4">
-                {/* Event 1 */}
-                <div className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">New Subscription</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Premium plan purchased by user #9041</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">2 minutes ago</p>
-                  </div>
-                </div>
-
-                {/* Event 2 */}
-                <div className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">Content Audit Complete</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Quality check finalized for 12 new titles</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">1 hour ago</p>
-                  </div>
-                </div>
-
-                {/* Event 3 */}
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 mt-2"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">System Alert</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Minor latency spike in European region</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">3 hours ago</p>
-                  </div>
-                </div>
+                {data?.recentEvents.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-4">No recent events found.</p>
+                ) : (
+                  data?.recentEvents.map((event) => (
+                    <div key={event.id} className="flex items-start gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                      <div className={`w-2 h-2 rounded-full mt-2 ${
+                        event.type === 'SUBSCRIPTION' ? 'bg-emerald-500' :
+                        event.type === 'USER_REGISTER' ? 'bg-blue-500' :
+                        event.type === 'SYSTEM' ? 'bg-rose-500' : 'bg-slate-400'
+                      }`}></div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">{event.title}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{event.description}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                          {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
 
           {/* Right: Platform Health */}
           <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 text-white h-full">
+            <div className={`rounded-xl p-6 text-white h-full transition-colors duration-500 ${
+              data?.health.status === 'ok' ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-rose-500 to-orange-600'
+            }`}>
               <h3 className="text-lg font-semibold mb-4">Platform Health</h3>
-              <p className="text-sm text-indigo-100 mb-6">All systems operational. Network latency 24ms.</p>
+              <p className="text-sm text-indigo-100 mb-6">
+                {data?.health.status === 'ok' ? 'All systems operational.' : 'Some systems experiencing issues.'} Network latency {data?.health.latency}.
+              </p>
               
               <div className="space-y-3 mb-6">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-indigo-100">System Status</span>
-                    <span className="font-semibold">99.9%</span>
+                    <span className="text-indigo-100">System Uptime</span>
+                    <span className="font-semibold">{data?.health.uptime}</span>
                   </div>
                   <div className="h-2 bg-indigo-400/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full" style={{ width: '99.9%' }}></div>
+                    <div className="h-full bg-white rounded-full transition-all duration-1000" style={{ width: data?.health.uptime }}></div>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-indigo-400/30">
-                <span className="text-sm text-indigo-100">All systems operational</span>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <span className="text-sm text-indigo-100">
+                  {data?.health.status === 'ok' ? 'All systems operational' : 'System warning'}
+                </span>
+                <svg className={`w-5 h-5 ${data?.health.status === 'ok' ? 'text-white' : 'text-rose-200 animate-pulse'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {data?.health.status === 'ok' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  )}
                 </svg>
               </div>
             </div>

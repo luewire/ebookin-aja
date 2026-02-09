@@ -63,16 +63,25 @@ export default function ManageEbooksPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
-      } else {
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (user.email === 'admin@admin.com') {
+      fetchEbooks();
+      fetchCategories();
+      return;
+    }
+    user.getIdTokenResult(true).then((tokenResult) => {
+      const role = tokenResult.claims.role;
+      if (role === 'ADMIN' || role === 'Admin') {
         fetchEbooks();
         fetchCategories();
+      } else {
+        router.push('/unauthorized');
       }
-    }
+    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   useEffect(() => {

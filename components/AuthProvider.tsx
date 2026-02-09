@@ -8,6 +8,7 @@ interface User extends FirebaseUser {
   subscriptionStatus?: string;
   role?: string;
   plan?: 'Free' | 'Premium';
+  dbId?: string;
 }
 
 interface AuthContextType {
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const token = tokenResult.token;
 
           let plan: 'Free' | 'Premium' = 'Free';
+          let dbId: string | undefined = undefined;
 
           try {
             const res = await fetch('/api/auth/me', {
@@ -47,17 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (res.ok) {
               const data = await res.json();
-              if (data.user && data.user.plan) {
-                plan = data.user.plan;
+              if (data.user) {
+                if (data.user.plan) plan = data.user.plan;
+                if (data.user.id) dbId = data.user.id;
               }
             }
           } catch (err) {
-            console.error("Failed to fetch user plan", err);
+            console.error("Failed to fetch user data from DB", err);
           }
 
           const userWithData = firebaseUser as User;
           userWithData.role = role;
           userWithData.plan = plan;
+          userWithData.dbId = dbId;
 
           setUser(userWithData);
         } catch (e) {

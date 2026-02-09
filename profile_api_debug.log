@@ -1,0 +1,218 @@
+[2026-02-08T20:02:22.528Z] API Hit: username="undefined"
+[2026-02-08T20:02:22.529Z] Error: Username required
+[2026-02-08T20:04:59.903Z] API Hit: username="undefined"
+[2026-02-08T20:04:59.904Z] Error: Username required
+[2026-02-08T20:06:20.141Z] API Hit: username="undefined"
+[2026-02-08T20:06:20.142Z] Error: Username required
+[2026-02-08T20:11:55.792Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params.username="undefined"
+[2026-02-08T20:11:55.797Z] Error: Username required
+[2026-02-08T20:11:56.585Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params.username="undefined"
+[2026-02-08T20:11:56.586Z] Error: Username required
+[2026-02-08T20:11:58.668Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params.username="undefined"
+[2026-02-08T20:11:58.669Z] Error: Username required
+[2026-02-08T20:12:21.408Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params.username="undefined"
+[2026-02-08T20:12:21.486Z] Error: Username required
+[2026-02-08T20:12:22.212Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params.username="undefined"
+[2026-02-08T20:12:22.213Z] Error: Username required
+[2026-02-08T20:20:55.589Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:20:55.668Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:20:55.668Z] Searching for user in DB: "luewire"
+[2026-02-08T20:20:55.870Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:20:55.871Z] Fetching social stats...
+[2026-02-08T20:20:55.872Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:20:55.872Z] Success: Returning profile data
+[2026-02-08T20:20:56.302Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:20:56.536Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:20:56.601Z] Searching for user in DB: "luewire"
+[2026-02-08T20:20:56.763Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:20:56.764Z] Fetching social stats...
+[2026-02-08T20:20:56.765Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:20:56.765Z] Success: Returning profile data
+[2026-02-08T20:21:11.905Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:21:12.015Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:21:12.015Z] Searching for user in DB: "admin"
+[2026-02-08T20:21:12.100Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:21:12.101Z] Fetching social stats...
+[2026-02-08T20:21:12.103Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:21:12.103Z] Success: Returning profile data
+[2026-02-08T20:21:12.184Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:21:12.227Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:21:12.228Z] Searching for user in DB: "admin"
+[2026-02-08T20:21:12.716Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:21:12.716Z] Fetching social stats...
+[2026-02-08T20:21:12.717Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:21:12.718Z] Success: Returning profile data
+[2026-02-08T20:24:26.596Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:24:26.801Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:24:26.802Z] Searching for user in DB: "luewire"
+[2026-02-08T20:24:27.130Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:24:27.131Z] Fetching social stats...
+[2026-02-08T20:24:27.133Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:24:27.133Z] Success: Returning profile data
+[2026-02-08T20:26:32.026Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:26:32.112Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:26:32.112Z] Searching for user in DB: "luewire"
+[2026-02-08T20:26:32.273Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:26:32.275Z] Fetching social stats...
+[2026-02-08T20:26:32.276Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:26:32.276Z] Success: Returning profile data
+[2026-02-08T20:26:32.353Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:26:32.398Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:26:32.399Z] Searching for user in DB: "luewire"
+[2026-02-08T20:26:32.507Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:26:32.508Z] Fetching social stats...
+[2026-02-08T20:26:32.509Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:26:32.510Z] Success: Returning profile data
+[2026-02-08T20:27:29.028Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:27:29.147Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:27:29.148Z] Searching for user in DB: "luewire"
+[2026-02-08T20:27:29.321Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:27:29.322Z] Fetching social stats...
+[2026-02-08T20:27:29.323Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:27:29.324Z] Success: Returning profile data
+[2026-02-08T20:27:29.397Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:27:29.453Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:27:29.454Z] Searching for user in DB: "luewire"
+[2026-02-08T20:27:29.600Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:27:29.601Z] Fetching social stats...
+[2026-02-08T20:27:29.602Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:27:29.603Z] Success: Returning profile data
+[2026-02-08T20:31:29.365Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:31:29.453Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:31:29.453Z] Searching for user in DB: "luewire"
+[2026-02-08T20:31:29.671Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:31:29.673Z] Fetching social stats...
+[2026-02-08T20:31:29.675Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:31:29.675Z] Success: Returning profile data
+[2026-02-08T20:31:29.734Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:31:29.822Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:31:29.823Z] Searching for user in DB: "luewire"
+[2026-02-08T20:31:29.984Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:31:29.984Z] Fetching social stats...
+[2026-02-08T20:31:29.985Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:31:29.986Z] Success: Returning profile data
+[2026-02-08T20:33:50.525Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:33:50.611Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:33:50.612Z] Searching for user in DB: "luewire"
+[2026-02-08T20:33:50.870Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:33:50.871Z] Fetching social stats...
+[2026-02-08T20:33:50.875Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:33:50.880Z] Success: Returning profile data
+[2026-02-08T20:33:51.279Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:33:51.516Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:33:51.644Z] Searching for user in DB: "luewire"
+[2026-02-08T20:33:51.854Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:33:51.900Z] Fetching social stats...
+[2026-02-08T20:33:51.902Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:33:51.903Z] Success: Returning profile data
+[2026-02-08T20:34:31.754Z] API Hit: URL="http://localhost:3000/api/users/cmldz76ju00002h91wn7tysy5/profile" params={"username":"cmldz76ju00002h91wn7tysy5"} rawUsername="cmldz76ju00002h91wn7tysy5"
+[2026-02-08T20:34:31.903Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:34:31.908Z] Searching for user in DB: "cmldz76ju00002h91wn7tysy5"
+[2026-02-08T20:34:32.099Z] User found: id="cmldz76ju00002h91wn7tysy5", username="null"
+[2026-02-08T20:34:32.100Z] Fetching social stats...
+[2026-02-08T20:34:32.102Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:34:32.103Z] Success: Returning profile data
+[2026-02-08T20:34:32.310Z] API Hit: URL="http://localhost:3000/api/users/cmldz76ju00002h91wn7tysy5/profile" params={"username":"cmldz76ju00002h91wn7tysy5"} rawUsername="cmldz76ju00002h91wn7tysy5"
+[2026-02-08T20:34:32.492Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:34:32.493Z] Searching for user in DB: "cmldz76ju00002h91wn7tysy5"
+[2026-02-08T20:34:32.601Z] User found: id="cmldz76ju00002h91wn7tysy5", username="null"
+[2026-02-08T20:34:32.602Z] Fetching social stats...
+[2026-02-08T20:34:32.603Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:34:32.604Z] Success: Returning profile data
+[2026-02-08T20:39:14.080Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:39:14.174Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:39:14.174Z] Searching for user in DB: "luewire"
+[2026-02-08T20:39:14.395Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:39:14.395Z] Fetching social stats...
+[2026-02-08T20:39:14.396Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:39:14.397Z] Success: Returning profile data
+[2026-02-08T20:39:14.514Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:39:14.579Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:39:14.580Z] Searching for user in DB: "luewire"
+[2026-02-08T20:39:14.700Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:39:14.701Z] Fetching social stats...
+[2026-02-08T20:39:14.702Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:39:14.703Z] Success: Returning profile data
+[2026-02-08T20:40:12.145Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:40:12.245Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:40:12.245Z] Searching for user in DB: "admin"
+[2026-02-08T20:40:12.817Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:40:12.817Z] Fetching social stats...
+[2026-02-08T20:40:12.818Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:40:12.819Z] Success: Returning profile data
+[2026-02-08T20:40:12.880Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:40:13.041Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:40:13.041Z] Searching for user in DB: "admin"
+[2026-02-08T20:40:13.328Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:40:13.328Z] Fetching social stats...
+[2026-02-08T20:40:13.329Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:40:13.330Z] Success: Returning profile data
+[2026-02-08T20:46:23.244Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:46:23.344Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:46:23.345Z] Searching for user in DB: "admin"
+[2026-02-08T20:46:23.629Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:46:23.630Z] Fetching social stats...
+[2026-02-08T20:46:23.650Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:46:23.651Z] Success: Returning profile data
+[2026-02-08T20:46:23.894Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:46:23.967Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:46:23.967Z] Searching for user in DB: "admin"
+[2026-02-08T20:46:24.221Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:46:24.222Z] Fetching social stats...
+[2026-02-08T20:46:24.226Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:46:24.227Z] Success: Returning profile data
+[2026-02-08T20:46:35.119Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:46:35.252Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:46:35.253Z] Searching for user in DB: "admin"
+[2026-02-08T20:46:35.563Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:46:35.564Z] Fetching social stats...
+[2026-02-08T20:46:35.565Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:46:35.566Z] Success: Returning profile data
+[2026-02-08T20:46:35.661Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:46:35.819Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:46:35.819Z] Searching for user in DB: "admin"
+[2026-02-08T20:46:35.967Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:46:35.979Z] Fetching social stats...
+[2026-02-08T20:46:35.981Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:46:35.983Z] Success: Returning profile data
+[2026-02-08T20:47:05.740Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:47:05.828Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:47:05.828Z] Searching for user in DB: "luewire"
+[2026-02-08T20:47:06.108Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:47:06.109Z] Fetching social stats...
+[2026-02-08T20:47:06.111Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:47:06.111Z] Success: Returning profile data
+[2026-02-08T20:47:06.252Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:47:06.350Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:47:06.351Z] Searching for user in DB: "luewire"
+[2026-02-08T20:47:06.549Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:47:06.550Z] Fetching social stats...
+[2026-02-08T20:47:06.551Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:47:06.553Z] Success: Returning profile data
+[2026-02-08T20:48:56.129Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:48:56.249Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:48:56.250Z] Searching for user in DB: "admin"
+[2026-02-08T20:48:56.427Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:48:56.429Z] Fetching social stats...
+[2026-02-08T20:48:56.430Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:48:56.431Z] Success: Returning profile data
+[2026-02-08T20:49:02.277Z] API Hit: URL="http://localhost:3000/api/users/luewire/profile" params={"username":"luewire"} rawUsername="luewire"
+[2026-02-08T20:49:02.319Z] Authenticated User: id="cml9lxl2k0009f3d62id9xp1j"
+[2026-02-08T20:49:02.320Z] Searching for user in DB: "luewire"
+[2026-02-08T20:49:02.439Z] User found: id="cmle3jvp00008zzsgwowb9iq8", username="luewire"
+[2026-02-08T20:49:02.440Z] Fetching social stats...
+[2026-02-08T20:49:02.441Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:49:02.441Z] Success: Returning profile data
+[2026-02-08T20:56:17.188Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:56:17.189Z] Searching for user in DB: "admin"
+[2026-02-08T20:56:17.811Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:56:17.811Z] Fetching social stats...
+[2026-02-08T20:56:17.812Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:56:17.813Z] Success: Returning profile data
+[2026-02-08T20:56:19.470Z] API Hit: URL="http://localhost:3000/api/users/admin/profile" params={"username":"admin"} rawUsername="admin"
+[2026-02-08T20:56:20.143Z] Authenticated User: id="cmle3jvp00008zzsgwowb9iq8"
+[2026-02-08T20:56:20.144Z] Searching for user in DB: "admin"
+[2026-02-08T20:56:20.431Z] User found: id="cml9lxl2k0009f3d62id9xp1j", username="admin"
+[2026-02-08T20:56:20.431Z] Fetching social stats...
+[2026-02-08T20:56:20.432Z] Social stats fallback error: Cannot read properties of undefined (reading 'count')
+[2026-02-08T20:56:20.433Z] Success: Returning profile data

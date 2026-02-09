@@ -16,27 +16,43 @@ async function getHandler(req: AuthenticatedRequest) {
     // 1. Fetch all users from Firebase Authentication
     const listUsersResult = await adminAuth.listUsers(limit);
 
-    // 2. Fetch all subscriptions from Prisma
+    // 2. Fetch all subscriptions and user data from Prisma
     // We fetch all because getting individual subs for 1000 users in a loop is slow.
     // In a larger scale app, we would paginate via DB, but here the source of truth for list is Firebase.
     const firebaseUids = listUsersResult.users.map(u => u.uid);
-    const subscriptions = await prisma.subscription.findMany({
-      where: {
-        user: {
+    
+    // Fetch both subscriptions and user profiles
+    const [subscriptions, userProfiles] = await Promise.all([
+      prisma.subscription.findMany({
+        where: {
+          user: {
+            firebaseUid: {
+              in: firebaseUids
+            }
+          },
+          status: 'ACTIVE'
+        },
+        include: {
+          user: {
+            select: {
+              firebaseUid: true
+            }
+          }
+        }
+      }),
+      prisma.user.findMany({
+        where: {
           firebaseUid: {
             in: firebaseUids
           }
         },
-        status: 'ACTIVE'
-      },
-      include: {
-        user: {
-          select: {
-            firebaseUid: true
-          }
+        select: {
+          firebaseUid: true,
+          username: true,
+          name: true
         }
-      }
-    });
+      })
+    ]);
 
     // Map subscriptions by firebaseUid for O(1) lookup
     const subMap = new Map();
@@ -46,10 +62,20 @@ async function getHandler(req: AuthenticatedRequest) {
       }
     });
 
+    // Map user profiles by firebaseUid for O(1) lookup
+    const userProfileMap = new Map();
+    userProfiles.forEach(profile => {
+      userProfileMap.set(profile.firebaseUid, profile);
+    });
+
     // 3. Transform and Merge
     let users = listUsersResult.users.map((firebaseUser) => {
-      // Extract username from display name or email
-      const username = firebaseUser.displayName ||
+      // Get user profile from database
+      const userProfile = userProfileMap.get(firebaseUser.uid);
+      
+      // Use username from database if available, fallback to display name or email
+      const username = userProfile?.username ||
+        firebaseUser.displayName ||
         firebaseUser.email?.split('@')[0] ||
         'Unknown User';
 

@@ -55,11 +55,25 @@ export default function LoginPage() {
 
       // If input doesn't contain @, it's a username - convert to email
       if (!emailOrUsername.includes('@')) {
-        // For admin username, directly map to admin email
-        if (emailOrUsername.toLowerCase() === 'admin') {
-          loginEmail = 'admin@admin.com';
-        } else {
-          setError('Username login only available for admin. Please use your email instead.');
+        try {
+          const response = await fetch('/api/user/username-to-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username: emailOrUsername }),
+          });
+
+          if (!response.ok) {
+            setError('Username not found. Please check your username or use email instead.');
+            setLoading(false);
+            return;
+          }
+
+          const data = await response.json();
+          loginEmail = data.email;
+        } catch (err) {
+          setError('Failed to verify username. Please try again.');
           setLoading(false);
           return;
         }
@@ -296,7 +310,7 @@ export default function LoginPage() {
       <footer className="border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 transition-colors">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            © 2024 Ebookin Digital. All rights reserved.
+            © 2026 Ebookin Digital. All rights reserved.
           </p>
         </div>
       </footer>

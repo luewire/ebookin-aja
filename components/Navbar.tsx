@@ -13,57 +13,160 @@ export default function Navbar() {
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [dbPhotoUrl, setDbPhotoUrl] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  // Apply dark mode from initial localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedMode);
     if (savedMode) {
       document.documentElement.classList.add('dark');
     }
   }, []);
 
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem('darkMode', String(newMode));
-    if (newMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/notifications', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data);
+        setUnreadCount(data.filter((n: any) => !n.isRead).length);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     }
   };
 
+  const markAllAsRead = async () => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ all: true })
+      });
+
+      if (response.ok) {
+        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
+
+  // Fetch profile photo from database
+  const fetchProfilePhoto = async () => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/user/profile', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDbPhotoUrl(data.user?.photoUrl || null);
+      }
+    } catch (error) {
+      console.error('Error fetching profile photo:', error);
+    }
+  };
+
+  // Initial fetches
+  useEffect(() => {
+    if (user) {
+      fetchProfilePhoto();
+      fetchNotifications();
+      // Poll notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    } else {
+      setDbPhotoUrl(null);
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  // Refetch photo when window gains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        fetchProfilePhoto();
+        fetchNotifications();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user]);
+
+  // Handle Search Navigation
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return;
+
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      params.set('q', searchQuery);
+      router.push(`/search?${params.toString()}`);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, router]);
+
   const handleLogout = async () => {
     try {
-      console.log('Starting logout process...');
-
-      // Close menus immediately
       setShowProfileMenu(false);
       setShowMobileMenu(false);
-
-      // Sign out from Firebase
+      setShowNotifications(false);
       await signOut(auth);
-
-      // Clear localStorage (except dark mode preference)
       const darkMode = localStorage.getItem('darkMode');
       localStorage.clear();
       if (darkMode) {
         localStorage.setItem('darkMode', darkMode);
       }
-
-      // Clear session storage
       sessionStorage.clear();
-
-      console.log('Logout complete, redirecting...');
-
-      // Redirect to home
       router.push('/');
-
     } catch (error) {
       console.error('Error during logout:', error);
-      // Force reload anyway
       router.push('/');
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'FOLLOW': return (
+        <svg className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      );
+      case 'MUTUAL_FOLLOW': return (
+        <svg className="h-5 w-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      );
+      default: return (
+        <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      );
     }
   };
 
@@ -102,37 +205,116 @@ export default function Navbar() {
             <div className="hidden sm:block relative">
               <input
                 type="text"
-                placeholder="Search books..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search books or users..."
                 className="w-64 rounded-full border-none bg-gray-100 dark:bg-slate-800 px-4 py-2 pl-10 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+                  }
+                }}
               />
               <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <button
-              onClick={toggleDarkMode}
-              className="hidden md:block rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300"
-              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {isDarkMode ? (
-                <svg className="h-5 w-5 text-yellow-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 text-gray-600 dark:text-gray-400 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
+
+            {/* Notifications Bell */}
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all duration-300 relative group"
+                  title="Notifications"
+                >
+                  <svg className="h-6 w-6 text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
+                    <div className="absolute right-0 mt-3 w-80 md:w-96 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-gray-200 dark:border-slate-700 z-20 animate-slide-down origin-top-right overflow-hidden backdrop-blur-md">
+                      <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
+                        <h3 className="font-bold text-gray-900 dark:text-white">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); markAllAsRead(); }}
+                            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-[70vh] overflow-y-auto">
+                        {notifications.length > 0 ? (
+                          <div className="divide-y divide-gray-100 dark:divide-slate-700">
+                            {notifications.map((notification) => (
+                              <div
+                                key={notification.id}
+                                className={`p-4 flex gap-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors relative cursor-default ${!notification.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                              >
+                                {!notification.isRead && (
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                                )}
+                                <div className="mt-1 flex-shrink-0">
+                                  {getNotificationIcon(notification.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                    {notification.title}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 uppercase font-medium tracking-wider">
+                                    {new Date(notification.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                            <div className="h-16 w-16 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
+                              <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                            </div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">No notifications yet</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">We&apos;ll notify you when something important happens.</p>
+                          </div>
+                        )}
+                      </div>
+                      {notifications.length > 0 && (
+                        <div className="p-3 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-700 text-center">
+                          <button className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">
+                            View All Notifications
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {user ? (
               <div className="hidden md:block relative">
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-bold hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 ring-2 ring-transparent hover:ring-blue-400 dark:hover:ring-blue-500 overflow-hidden"
                 >
-                  {user.photoURL ? (
+                  {dbPhotoUrl || user.photoURL ? (
                     <img
-                      src={user.photoURL}
+                      src={dbPhotoUrl || user.photoURL || ''}
                       alt="Profile"
                       className="h-full w-full object-cover"
                     />
@@ -244,28 +426,6 @@ export default function Navbar() {
                 </button>
               </>
             )}
-            <div className="pt-2">
-              <button
-                onClick={toggleDarkMode}
-                className="flex w-full items-center gap-3 px-3 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                {isDarkMode ? (
-                  <>
-                    <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    Light Mode
-                  </>
-                ) : (
-                  <>
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    Dark Mode
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       )}

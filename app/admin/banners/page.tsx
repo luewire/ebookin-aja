@@ -57,8 +57,10 @@ export default function ManageBannersPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch banners');
-      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || 'Failed to fetch banners');
+      }
       const data = await response.json();
       setBanners(data.banners || []);
     } catch (error) {

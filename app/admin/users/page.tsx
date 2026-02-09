@@ -47,15 +47,24 @@ export default function UserManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
-      } else {
-        fetchUsers();
-      }
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
     }
+    // Same admin check as layout: email or token role
+    if (user.email === 'admin@admin.com') {
+      fetchUsers();
+      return;
+    }
+    user.getIdTokenResult(true).then((tokenResult) => {
+      const role = tokenResult.claims.role;
+      if (role === 'ADMIN' || role === 'Admin') {
+        fetchUsers();
+      } else {
+        router.push('/unauthorized');
+      }
+    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   const toggleDarkMode = () => {
@@ -85,7 +94,8 @@ export default function UserManagementPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error((errorData as { error?: string }).error || 'Failed to fetch users');
       }
 
       const { users: fetchedUsers } = await response.json();
@@ -308,7 +318,7 @@ export default function UserManagementPage() {
                       {u.username.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">{u.username}</div>
+                      <div className="font-semibold text-slate-900 dark:text-white">@{u.username}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">{u.email}</div>
                     </div>
                   </div>
@@ -449,7 +459,7 @@ export default function UserManagementPage() {
                     {selectedUser.username.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-slate-900 dark:text-white">{selectedUser.username}</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-white">@{selectedUser.username}</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{selectedUser.email}</p>
                     <p className="text-xs text-slate-400 mt-1">ID: {selectedUser.id}</p>
                   </div>

@@ -11,6 +11,11 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -29,6 +34,68 @@ export default function RegisterPage() {
     }
   }, []);
 
+  // Check username availability
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (!username) {
+        setUsernameAvailable(null);
+        return;
+      }
+
+      const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+      if (!usernameRegex.test(username)) {
+        setUsernameAvailable(false);
+        return;
+      }
+
+      setCheckingUsername(true);
+      try {
+        const response = await fetch(`/api/user/check-username?username=${encodeURIComponent(username)}`);
+        const data = await response.json();
+        setUsernameAvailable(data.available);
+      } catch (error) {
+        console.error('Error checking username:', error);
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    };
+
+    const timer = setTimeout(checkUsername, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  // Check email availability
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!email) {
+        setEmailAvailable(null);
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setEmailAvailable(false);
+        return;
+      }
+
+      setCheckingEmail(true);
+      try {
+        const response = await fetch(`/api/user/check-email?email=${encodeURIComponent(email)}`);
+        const data = await response.json();
+        setEmailAvailable(data.available);
+      } catch (error) {
+        console.error('Error checking email:', error);
+        setEmailAvailable(null);
+      } finally {
+        setCheckingEmail(false);
+      }
+    };
+
+    const timer = setTimeout(checkEmail, 500);
+    return () => clearTimeout(timer);
+  }, [email]);
+
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -46,6 +113,24 @@ export default function RegisterPage() {
     setLoading(true);
 
     // Validation
+    if (!username) {
+      setError('Username is required');
+      setLoading(false);
+      return;
+    }
+
+    if (usernameAvailable === false) {
+      setError('Username is not available');
+      setLoading(false);
+      return;
+    }
+
+    if (emailAvailable === false) {
+      setError('Email is already registered');
+      setLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -85,6 +170,7 @@ export default function RegisterPage() {
           },
           body: JSON.stringify({ 
             idToken,
+            username: username,
             name: fullName 
           }),
         });
@@ -162,33 +248,7 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-900 dark:to-slate-800 px-4 transition-colors duration-300">
-        <div className="max-w-md rounded-2xl bg-white dark:bg-slate-800 border-2 border-blue-200 dark:border-blue-800 p-8 text-center shadow-2xl">
-          <div className="mb-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full animate-bounce">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          </div>
-          <h3 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">Selamat Datang! 🎉</h3>
-          <p className="text-base text-gray-600 dark:text-gray-400 mb-4">
-            Akun Anda berhasil dibuat. Sekarang pilih paket langganan untuk mulai membaca ribuan e-book...
-          </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Redirecting...
-          </div>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
@@ -254,6 +314,57 @@ export default function RegisterPage() {
               </div>
 
               <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Username
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <span className="text-gray-400 text-base">@</span>
+                  </div>
+                  <input
+                    id="username"
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    className={`block w-full rounded-lg border ${
+                      username && usernameAvailable === false
+                        ? 'border-red-300 dark:border-red-600'
+                        : username && usernameAvailable === true
+                        ? 'border-green-300 dark:border-green-600'
+                        : 'border-gray-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-700 pl-10 pr-10 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors`}
+                    placeholder="username"
+                    minLength={3}
+                    maxLength={20}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    {checkingUsername ? (
+                      <svg className="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : username && usernameAvailable === true ? (
+                      <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : username && usernameAvailable === false ? (
+                      <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : null}
+                  </div>
+                </div>
+                {username && usernameAvailable === false && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">Username already taken</p>
+                )}
+                {username && usernameAvailable === true && (
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">Username available</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">3-20 characters, letters, numbers, and underscore only</p>
+              </div>
+
+              <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email Address
                 </label>
@@ -269,10 +380,38 @@ export default function RegisterPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 pl-10 pr-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
+                    className={`block w-full rounded-lg border ${
+                      email && emailAvailable === false
+                        ? 'border-red-300 dark:border-red-600'
+                        : email && emailAvailable === true
+                        ? 'border-green-300 dark:border-green-600'
+                        : 'border-gray-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-700 pl-10 pr-10 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors`}
                     placeholder="jane@example.com"
                   />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    {checkingEmail ? (
+                      <svg className="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : email && emailAvailable === true ? (
+                      <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : email && emailAvailable === false ? (
+                      <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : null}
+                  </div>
                 </div>
+                {email && emailAvailable === false && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">Email is already registered</p>
+                )}
+                {email && emailAvailable === true && (
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">Email available</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -293,7 +432,13 @@ export default function RegisterPage() {
                       minLength={6}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 pl-10 pr-11 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
+                      className={`block w-full rounded-lg border ${
+                        password && password.length < 6
+                          ? 'border-red-300 dark:border-red-600'
+                          : password && password.length >= 6
+                          ? 'border-green-300 dark:border-green-600'
+                          : 'border-gray-300 dark:border-slate-600'
+                      } bg-white dark:bg-slate-700 pl-10 pr-11 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors`}
                       placeholder="••••••••"
                     />
                     <button
@@ -313,6 +458,9 @@ export default function RegisterPage() {
                       )}
                     </button>
                   </div>
+                  {password && password.length < 6 && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">Minimum 6 characters</p>
+                  )}
                 </div>
 
                 <div>
@@ -332,7 +480,13 @@ export default function RegisterPage() {
                       minLength={6}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 pl-10 pr-11 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
+                      className={`block w-full rounded-lg border ${
+                        confirmPassword && confirmPassword !== password
+                          ? 'border-red-300 dark:border-red-600'
+                          : confirmPassword && confirmPassword === password && password.length >= 6
+                          ? 'border-green-300 dark:border-green-600'
+                          : 'border-gray-300 dark:border-slate-600'
+                      } bg-white dark:bg-slate-700 pl-10 pr-11 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors`}
                       placeholder="••••••••"
                     />
                     <button
@@ -352,6 +506,9 @@ export default function RegisterPage() {
                       )}
                     </button>
                   </div>
+                  {confirmPassword && confirmPassword !== password && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">Passwords don't match</p>
+                  )}
                 </div>
               </div>
 

@@ -90,8 +90,27 @@ export function withAuth(
       authenticatedReq.decodedToken = decodedToken;
 
       return handler(authenticatedReq, context);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Auth middleware error:', error);
+
+      // Prisma/DB errors → 503 so client can show "service unavailable"
+      const isPrisma = error && typeof error === 'object' && 'code' in error && String((error as { code?: string }).code).startsWith('P');
+      if (isPrisma) {
+        return NextResponse.json(
+          { error: 'Service temporarily unavailable' },
+          { status: 503 }
+        );
+      }
+
+      // Token/auth-related message → 401
+      const msg = error instanceof Error ? error.message : '';
+      if (/token|unauthorized|invalid|expired|credential/i.test(msg)) {
+        return NextResponse.json(
+          { error: 'Invalid or expired token' },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json(
         { error: 'Authentication failed' },
         { status: 500 }

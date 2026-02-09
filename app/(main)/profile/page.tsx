@@ -5,32 +5,47 @@ import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { updateProfile } from 'firebase/auth';
+import { signOut, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-interface ReadingSession {
+interface ReadlistItem {
   id: string;
-  ebook_id: string;
-  progress: number;
-  last_read: string;
+  userId: string;
+  ebookId: string;
+  status: 'WANT_TO_READ' | 'READING' | 'FINISHED';
+  createdAt: string;
+  updatedAt: string;
   ebook: {
+    id: string;
     title: string;
     author: string;
-    cover: string;
+    coverUrl: string;
     category: string;
+    isPremium: boolean;
   };
 }
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  const [readingSessions, setReadingSessions] = useState<ReadingSession[]>([]);
+  const [readlistItems, setReadlistItems] = useState<ReadlistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'completed'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'completed' | 'wantToRead'>('all');
   const [profileData, setProfileData] = useState<{
+    name: string | null;
     username: string | null;
     bio: string | null;
     reading_goal: number | null;
-  }>({ username: null, bio: null, reading_goal: null });
+    photoUrl: string | null;
+    subscription?: {
+      status: string;
+      planName: string;
+    } | null;
+    stats?: {
+      followers: number;
+      following: number;
+      booksRead: number;
+    };
+  }>({ name: null, username: null, bio: null, reading_goal: null, photoUrl: null, subscription: null });
   const [editMode, setEditMode] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
@@ -38,42 +53,83 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState('');
   const router = useRouter();
 
+  // Fetch profile data on mount and when window gains focus
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
     } else if (!authLoading && user) {
-      fetchReadingSessions();
+      fetchReadlist();
       fetchProfileData();
     }
   }, [authLoading, user]);
 
+  // Refetch data when window/tab gains focus (e.g., after navigating from settings)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (!authLoading && user) {
+        fetchProfileData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [authLoading, user]);
+
   const fetchProfileData = async () => {
     try {
-      // Load from user metadata
-      const metadata = user?.user_metadata || {};
+      // Load from database via API
+      const token = await user?.getIdToken();
+      if (token) {
+        const response = await fetch('/api/user/profile', {
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store' // Always fetch fresh data
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user) {
+            setProfileData({
+              name: data.user.name || null,
+              username: data.user.username || null,
+              bio: data.user.bio || null,
+              reading_goal: data.user.readingGoal || null,
+              photoUrl: data.user.photoUrl || null,
+              subscription: data.user.subscription || null,
+              stats: data.user.stats
+            });
+            return;
+          }
+        }
+      }
+
+      // Fallback to user metadata if API fails
       setProfileData({
-        username: metadata.username || null,
-        bio: metadata.bio || null,
-        reading_goal: metadata.reading_goal || null
+        name: user?.displayName || user?.email?.split('@')[0] || null,
+        username: null,
+        bio: null,
+        reading_goal: 25,
+        photoUrl: user?.photoURL || null
       });
     } catch (error: any) {
       console.error('Error fetching profile data:', error);
     }
   };
 
-  const fetchReadingSessions = async () => {
+  const fetchReadlist = async () => {
     try {
-      // TODO: Fetch reading sessions from API route using Prisma
-      // const response = await fetch('/api/reading-sessions', {
-      //   headers: { 'Authorization': `Bearer ${await user?.getIdToken()}` }
-      // });
-      // const data = await response.json();
-      // setReadingSessions(data.sessions || []);
-      
-      // For now, set empty array
-      setReadingSessions([]);
+      const token = await user?.getIdToken();
+      if (!token) return;
+
+      const response = await fetch('/api/readlist', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReadlistItems(data || []);
+      }
     } catch (error: any) {
-      console.error('Error fetching reading sessions:', error);
+      console.error('Error fetching readlist:', error);
     } finally {
       setLoading(false);
     }
@@ -81,49 +137,54 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     try {
-      console.log('Profile logout started...');
-      
-      // Sign out with local scope
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      if (error) {
-        console.error('Logout error:', error);
+      console.log('Starting logout process...');
+
+      // Sign out from Firebase
+      await signOut(auth);
+
+      // Clear localStorage (except dark mode preference)
+      const darkMode = localStorage.getItem('darkMode');
+      localStorage.clear();
+      if (darkMode) {
+        localStorage.setItem('darkMode', darkMode);
       }
-      
-      // Clear all auth storage
-      Object.keys(localStorage).forEach(key => {
-        if (key.includes('supabase') || key.includes('auth') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
+
+      // Clear session storage
       sessionStorage.clear();
-      
-      // Force redirect
-      setTimeout(() => {
-        window.location.replace('/');
-      }, 100);
+
+      console.log('Logout complete, redirecting...');
+
+      // Redirect to home
+      window.location.replace('/');
+
     } catch (error) {
       console.error('Error logging out:', error);
       window.location.replace('/');
     }
   };
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (text: string) => {
+    if (!text) return 'U';
+    const words = text.trim().split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return text.substring(0, 2).toUpperCase();
   };
 
   const getUserName = () => {
-    return user?.user_metadata?.username || user?.email?.split('@')[0] || 'User';
+    return profileData.name || user?.displayName || user?.email?.split('@')[0] || 'User';
   };
 
   const handleEditProfile = () => {
-    setEditUsername(profileData.username || getUserName());
+    setEditUsername(profileData.name || getUserName());
     setEditBio(profileData.bio || '');
     setEditMode(true);
   };
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    
+
     setSaving(true);
     try {
       // Update Firebase Auth profile
@@ -149,15 +210,16 @@ export default function ProfilePage() {
     }
   };
 
-  const filteredSessions = readingSessions.filter(session => {
-    if (activeTab === 'reading') return session.progress > 0 && session.progress < 100;
-    if (activeTab === 'completed') return session.progress >= 100;
+  const filteredItems = readlistItems.filter(item => {
+    if (activeTab === 'reading') return item.status === 'READING';
+    if (activeTab === 'completed') return item.status === 'FINISHED';
+    if (activeTab === 'wantToRead') return item.status === 'WANT_TO_READ';
     return true;
   });
 
-  const completedCount = readingSessions.filter(s => s.progress >= 100).length;
+  const completedCount = readlistItems.filter(item => item.status === 'FINISHED').length;
   const yearGoal = profileData.reading_goal || 25;
-  const joinDate = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+  const joinDate = user?.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
 
   if (authLoading || loading) {
     return (
@@ -202,32 +264,46 @@ export default function ProfilePage() {
         <div className="flex flex-col sm:flex-row items-start gap-6">
           <div className="relative">
             <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold shadow-xl overflow-hidden">
-              {user?.user_metadata?.avatar_url ? (
-                <img src={user.user_metadata.avatar_url} alt="Profile" className="h-full w-full object-cover" />
+              {profileData.photoUrl || user?.photoURL ? (
+                <img src={profileData.photoUrl || user?.photoURL || ''} alt="Profile" className="h-full w-full object-cover" />
               ) : (
-                getInitials(user?.email || '')
+                getInitials(profileData.name || user?.displayName || user?.email || '')
               )}
             </div>
           </div>
-          
+
           <div className="flex-1 w-full">
             {!editMode ? (
               <>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    {profileData.username || getUserName()}
-                  </h1>
-                  <button
-                    onClick={handleEditProfile}
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+                      {profileData.name || getUserName()}
+                      {profileData.subscription?.status === 'ACTIVE' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
+                          Premium
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600 uppercase tracking-wider">
+                          Free
+                        </span>
+                      )}
+                    </h1>
+                    {profileData.username && (
+                      <p className="text-base text-gray-500 dark:text-gray-400 mt-1.5">@{profileData.username}</p>
+                    )}
+                  </div>
+                  <Link
+                    href="/settings?tab=profile"
                     className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors w-fit"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                     Edit Profile
-                  </button>
+                  </Link>
                 </div>
-                
+
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-2xl">
                   {profileData.bio || 'No bio yet. Click Edit Profile to add one!'}
                 </p>
@@ -246,7 +322,7 @@ export default function ProfilePage() {
                     placeholder="Enter your username"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Bio
@@ -293,7 +369,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-            
+
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mt-4">
               <div className="flex items-center gap-2">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,65 +380,91 @@ export default function ProfilePage() {
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-gray-900 dark:text-gray-100">2026 Goal: {completedCount} of {yearGoal} books</span>
                 <div className="h-2 w-32 rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-blue-600 rounded-full transition-all duration-500"
                     style={{ width: `${Math.min(100, (completedCount / yearGoal) * 100)}%` }}
                   />
                 </div>
               </div>
             </div>
+
+            {/* Social Stats Row */}
+            {profileData.stats && (
+              <div className="flex gap-8 mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+                <div>
+                  <span className="block text-xl font-bold text-gray-900 dark:text-gray-100 leading-none">{profileData.stats.followers}</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Followers</span>
+                </div>
+                <div>
+                  <span className="block text-xl font-bold text-gray-900 dark:text-gray-100 leading-none">{profileData.stats.following}</span>
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Following</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* My Library Section */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">My Library</h2>
-          
+
           {/* Tabs */}
           <div className="flex items-center gap-6 border-b border-gray-200 dark:border-slate-700 mb-6">
             <button
               onClick={() => setActiveTab('all')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'all'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'all'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
             >
               All Books
             </button>
             <button
               onClick={() => setActiveTab('reading')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'reading'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'reading'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
             >
               Currently Reading
             </button>
             <button
               onClick={() => setActiveTab('completed')}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'completed'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'completed'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
             >
               Completed
+            </button>
+            <button
+              onClick={() => setActiveTab('wantToRead')}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'wantToRead'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+            >
+              Want to read
             </button>
           </div>
 
           {/* Books Grid */}
-          {filteredSessions.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <div className="rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-12 text-center">
               <div className="mb-4 text-5xl">📚</div>
               <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {activeTab === 'reading' ? 'No books in progress' : 
-                 activeTab === 'completed' ? 'No completed books yet' : 
-                 'No books in your library'}
+                {activeTab === 'reading'
+                  ? 'No books in progress'
+                  : activeTab === 'completed'
+                    ? 'No completed books yet'
+                    : activeTab === 'wantToRead'
+                      ? 'No books in your Want to read list'
+                      : 'No books in your library'}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                Start reading to build your collection
+                {activeTab === 'wantToRead'
+                  ? 'Add books to your Want to read list to keep track of what you want to read next.'
+                  : 'Start reading to build your collection'}
               </p>
               <Link
                 href="/"
@@ -373,53 +475,40 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
-              {filteredSessions.map((session) => (
+              {filteredItems.map((item) => (
                 <Link
-                  key={session.id}
-                  href={`/ebooks/${session.ebook_id}`}
+                  key={item.id}
+                  href={`/ebooks/${item.ebookId}`}
                   className="group"
                 >
-                  <div className="mb-3 aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-slate-700 shadow-md group-hover:shadow-xl transition-all duration-300">
+                  <div className="mb-3 aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-slate-700 shadow-md group-hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-slate-600">
                     <img
-                      src={session.ebook.cover || '/placeholder-book.jpg'}
-                      alt={session.ebook.title}
+                      src={item.ebook.coverUrl || '/placeholder-book.jpg'}
+                      alt={item.ebook.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
-                    {session.ebook.title}
+                    {item.ebook.title}
                   </h3>
-                  <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{session.ebook.author}</p>
-                  
+                  <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{item.ebook.author}</p>
+
                   {/* Status Badge */}
                   <div className="mb-2">
-                    {session.progress >= 100 ? (
-                      <span className="inline-block rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400">
+                    {item.status === 'FINISHED' ? (
+                      <span className="inline-block rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">
                         COMPLETED
                       </span>
-                    ) : session.progress > 0 ? (
-                      <span className="inline-block rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-400">
+                    ) : item.status === 'READING' ? (
+                      <span className="inline-block rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
                         READING
                       </span>
                     ) : (
-                      <span className="inline-block rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-400">
-                        NOT STARTED
+                      <span className="inline-block rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-bold text-gray-700 dark:text-gray-400 uppercase tracking-wider">
+                        WANT TO READ
                       </span>
                     )}
                   </div>
-
-                  {/* Progress Bar */}
-                  {session.progress > 0 && session.progress < 100 && (
-                    <div className="mt-2">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
-                        <div
-                          className="h-full rounded-full bg-blue-600 transition-all duration-500"
-                          style={{ width: `${Math.min(100, session.progress)}%` }}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{Math.round(session.progress)}%</p>
-                    </div>
-                  )}
                 </Link>
               ))}
             </div>

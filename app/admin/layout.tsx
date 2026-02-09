@@ -155,12 +155,16 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
 
               {/* User Avatar */}
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Alex Rivera</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Super Admin</p>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">{user?.displayName || 'Admin'}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">Super Admin</p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-semibold">
-                  AR
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold shadow-sm">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Admin" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    (user?.displayName || 'A').substring(0, 2).toUpperCase()
+                  )}
                 </div>
               </div>
             </div>

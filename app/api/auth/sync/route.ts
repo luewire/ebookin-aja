@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { idToken, name } = await req.json();
+    const { idToken, name, username } = await req.json();
 
     if (!idToken) {
       return NextResponse.json(
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify Firebase token
+    // Verify Firebase token first
     const decodedToken = await verifyIdToken(idToken);
     if (!decodedToken) {
       return NextResponse.json(
@@ -36,23 +36,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate username format if provided
+    if (username) {
+      const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+      if (!usernameRegex.test(username)) {
+        return NextResponse.json(
+          { error: 'Username must be 3-20 characters (letters, numbers, underscore only)' },
+          { status: 400 }
+        );
+      }
+
+      // Check if username is already taken by another user
+      const existingUser = await prisma.user.findUnique({
+        where: { username: username.toLowerCase() }
+      });
+
+      if (existingUser && existingUser.firebaseUid !== uid) {
+        return NextResponse.json(
+          { error: 'Username already taken' },
+          { status: 409 }
+        );
+      }
+    }
+
     // Upsert user in database
     const user = await prisma.user.upsert({
       where: { firebaseUid: uid },
       create: {
         firebaseUid: uid,
         email,
+        username: username ? username.toLowerCase() : null,
         name: name || email.split('@')[0],
         role: 'USER',
       },
       update: {
         email,
         ...(name && { name }),
+        ...(username && { username: username.toLowerCase() }),
       },
       select: {
         id: true,
         firebaseUid: true,
         email: true,
+        username: true,
         name: true,
         role: true,
         createdAt: true,

@@ -1,0 +1,22 @@
+[2026-02-08T21:14:44.099Z] Follow attempt: follower=cml9lxl2k0009f3d62id9xp1j, following=cmle3jvp00008zzsgwowb9iq8
+[2026-02-08T21:14:44.103Z] Error: Prisma model "follow" not found on local client
+[2026-02-08T21:14:59.407Z] Follow attempt: follower=cml9lxl2k0009f3d62id9xp1j, following=cmle3jvp00008zzsgwowb9iq8
+[2026-02-08T21:14:59.414Z] Error: Prisma model "follow" not found on local client
+[2026-02-08T21:18:10.415Z] Follow attempt: follower=cml9lxl2k0009f3d62id9xp1j, following=cmle3jvp00008zzsgwowb9iq8
+[2026-02-08T21:18:10.419Z] Using RAW SQL for follow check...
+[2026-02-08T21:18:10.923Z] Raw Success: Followed cmle3jvp00008zzsgwowb9iq8
+[2026-02-08T21:24:15.000Z] Follow attempt: follower=cmle3jvp00008zzsgwowb9iq8, following=cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:24:15.025Z] Using RAW SQL for follow check...
+[2026-02-08T21:24:15.596Z] Raw Success: Followed cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:30:31.057Z] Follow attempt: follower=cmle3jvp00008zzsgwowb9iq8, following=cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:30:31.100Z] Using RAW SQL for follow check...
+[2026-02-08T21:30:31.537Z] Raw Success: Unfollowed cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:30:52.075Z] Follow attempt: follower=cmle3jvp00008zzsgwowb9iq8, following=cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:30:52.079Z] Using RAW SQL for follow check...
+[2026-02-08T21:30:52.803Z] Raw Success: Followed cml9lxl2k0009f3d62id9xp1j (Mutual: true)
+[2026-02-08T21:32:55.566Z] Follow attempt: follower=cmle3jvp00008zzsgwowb9iq8, following=cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:32:55.570Z] Using RAW SQL for follow check...
+[2026-02-08T21:32:56.048Z] Raw Success: Unfollowed cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:33:15.727Z] Follow attempt: follower=cmle3jvp00008zzsgwowb9iq8, following=cml9lxl2k0009f3d62id9xp1j
+[2026-02-08T21:33:15.731Z] Using RAW SQL for follow check...
+[2026-02-08T21:33:16.393Z] Raw Success: Followed cml9lxl2k0009f3d62id9xp1j (Mutual: true)

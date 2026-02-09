@@ -42,15 +42,23 @@ export default function ManageCategoriesPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
-      } else {
-        fetchCategories();
-      }
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
     }
+    if (user.email === 'admin@admin.com') {
+      fetchCategories();
+      return;
+    }
+    user.getIdTokenResult(true).then((tokenResult) => {
+      const role = tokenResult.claims.role;
+      if (role === 'ADMIN' || role === 'Admin') {
+        fetchCategories();
+      } else {
+        router.push('/unauthorized');
+      }
+    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   const toggleDarkMode = () => {

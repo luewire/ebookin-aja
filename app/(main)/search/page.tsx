@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ interface SearchResult {
     totalUsers: number;
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user } = useAuth();
@@ -290,5 +290,27 @@ export default function SearchPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+                <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    <div className="animate-pulse">
+                        <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-1/3 mb-6"></div>
+                        <div className="h-12 bg-gray-200 dark:bg-slate-700 rounded mb-8"></div>
+                        <div className="space-y-4">
+                            <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded"></div>
+                            <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-5/6"></div>
+                            <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-4/6"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }>
+            <SearchPageContent />
+        </Suspense>
     );
 }

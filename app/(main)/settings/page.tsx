@@ -1145,23 +1145,31 @@ function SettingsContent() {
                           </svg>
                         </div>
                         <div>
-                          <h4 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Premium Annual Plan</h4>
-                          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Next billing date: October 24, 2024</p>
+                          <h4 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                            {user?.subscription?.status === 'ACTIVE' ? `Premium ${user?.subscription.planName} Plan` : 'Free Plan'}
+                          </h4>
+                          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                            {user?.subscription?.status === 'ACTIVE' && user.subscription.endDate
+                              ? `Valid until: ${new Date(user.subscription.endDate).toLocaleDateString()}`
+                              : 'Limited access to premium books'}
+                          </p>
                         </div>
                       </div>
-                      <button className="rounded-xl px-6 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 shadow-accent relative z-10" style={{ backgroundColor: 'var(--accent)' }}>
-                        Manage Plan
-                      </button>
+                      <Link href="/pricing" className="rounded-xl px-6 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90 shadow-accent relative z-10 inline-block text-center" style={{ backgroundColor: 'var(--accent)' }}>
+                        {user?.subscription?.status === 'ACTIVE' ? 'Extend Plan' : 'Upgrade to Premium'}
+                      </Link>
                     </div>
                   </div>
 
                   {/* Cancel Subscription */}
-                  <div className="pt-8 mt-8 border-t" style={{ borderColor: 'var(--border)' }}>
-                    <button className="text-sm font-bold text-[#ef4444] hover:text-white transition-colors">
-                      Cancel Subscription
-                    </button>
-                    <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>If you cancel, you'll still have access to premium features until the end of your billing cycle.</p>
-                  </div>
+                  {user?.subscription?.status === 'ACTIVE' && (
+                    <div className="pt-8 mt-8 border-t" style={{ borderColor: 'var(--border)' }}>
+                      <button className="text-sm font-bold text-[#ef4444] hover:text-white transition-colors">
+                        Cancel Subscription
+                      </button>
+                      <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>If you cancel, you'll still have access to premium features until the end of your billing cycle.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </main>

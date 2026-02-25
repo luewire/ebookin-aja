@@ -8,6 +8,12 @@ interface User extends FirebaseUser {
   subscriptionStatus?: string;
   role?: string;
   plan?: 'Free' | 'Premium';
+  subscription?: {
+    status: string;
+    planName: string;
+    startDate: string;
+    endDate: string;
+  };
   dbId?: string;
 }
 
@@ -39,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           let plan: 'Free' | 'Premium' = 'Free';
           let dbId: string | undefined = undefined;
+          let subscription: any = undefined;
 
           try {
             const res = await fetch('/api/auth/me', {
@@ -53,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (data.user.plan) plan = data.user.plan;
                 if (data.user.id) dbId = data.user.id;
                 if (data.user.role) role = data.user.role;
+                if (data.user.subscription) subscription = data.user.subscription;
               }
             }
           } catch (err) {
@@ -63,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userWithData.role = role;
           userWithData.plan = plan;
           userWithData.dbId = dbId;
+          userWithData.subscription = subscription;
 
           setUser(userWithData);
         } catch (e) {

@@ -5,7 +5,7 @@
 
 // Merchant info for validation
 const MERCHANT_KEYWORDS = ['BLANCSTUDIA', 'DIGITAL & KREATIF', 'DIGITAL', 'KREATIF'];
-const SUCCESS_KEYWORDS = ['BERHASIL', 'SUKSES', 'SUCCESS', 'SUCCESSFUL', 'PEMBAYARAN BERHASIL', 'TRANSAKSI BERHASIL'];
+const SUCCESS_KEYWORDS = ['BERHASIL', 'SUKSES', 'SUCCESS', 'SUCCESSFUL', 'PEMBAYARAN BERHASIL', 'TRANSAKSI BERHASIL', 'TRANSACTION ID', 'REF', 'REFERENSI', 'TRX'];
 
 // Plan amount mapping
 const PLAN_AMOUNTS: Record<string, { amount: number; patterns: string[] }> = {
@@ -91,6 +91,7 @@ function checkDateInText(text: string): { valid: boolean; found: string | null }
 
     // Indonesian month names
     const monthNamesId = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
     const day = now.getDate();
@@ -104,8 +105,10 @@ function checkDateInText(text: string): { valid: boolean; found: string | null }
         `${day}-${month + 1}-${year}`,           // 26-2-2026
         `${day.toString().padStart(2, '0')}-${(month + 1).toString().padStart(2, '0')}-${year}`, // 26-02-2026
         `${day} ${monthNamesId[month]} ${year}`, // 26 Februari 2026
+        `${day} ${monthNamesEn[month]} ${year}`, // 26 February 2026
         `${day} ${monthShort[month]} ${year}`,   // 26 Feb 2026
         `${day} ${monthNamesId[month]}`,         // 26 Februari (without year)
+        `${day} ${monthNamesEn[month]}`,         // 26 February (without year)
         `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`, // 2026-02-26
     ];
 

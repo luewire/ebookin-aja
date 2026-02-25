@@ -103,6 +103,7 @@ function OrderContent() {
 
             const formDataToSend = new FormData();
             formDataToSend.append('file', file);
+            formDataToSend.append('type', 'payment');
 
             const response = await fetch('/api/upload', {
                 method: 'POST',

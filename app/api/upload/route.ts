@@ -106,13 +106,16 @@ async function handler(req: AuthenticatedRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Determine folder
+    const folderName = type === 'payment' ? 'payment-proofs' : (type === 'avatar' ? 'avatars' : 'ebook-covers');
+
     // Upload to Cloudinary
     try {
       const result = await new Promise<any>((resolve, reject) => {
         cloudinary.v2.uploader.upload_stream(
           {
             resource_type: 'image',
-            folder: 'ebook-covers',
+            folder: folderName,
             public_id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
             transformation: [
               { width: 800, height: 1200, crop: 'limit' },

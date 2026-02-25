@@ -294,12 +294,15 @@ export default function EbookDetailPage() {
       ebookId: ebook.id
     });
 
-    // Check if user has subscription or is Admin
-    if (user?.role === 'Admin' || currentHasSub || user?.plan === 'Premium') {
+    const isFreeBook = ebook.isPremium === false;
+
+    // Check if user has subscription, is Admin, or the book is free
+    if (isFreeBook || user?.role === 'Admin' || currentHasSub || user?.plan === 'Premium') {
       // User has access, go to reader
       router.push(`/reader/${ebook.id}`);
     } else {
       // User needs subscription, show pricing modal
+
       // User needs subscription, showing modal
       setShowPricingModal(true);
     }

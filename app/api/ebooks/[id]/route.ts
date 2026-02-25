@@ -51,9 +51,12 @@ async function getHandler(req: AuthenticatedRequest, { params }: { params: Promi
       );
     }
 
-    // All ebooks require subscription to access
-    // Check if user has active subscription
-    const hasAccess = await hasActiveSubscription(userId);
+    // Check if user can access the book
+    const isFreeBook = ebook.isPremium === false;
+    const isAdmin = req.user?.role === 'ADMIN' || req.user?.role === 'Admin';
+    const hasSubscription = await hasActiveSubscription(userId);
+
+    const hasAccess = isFreeBook || isAdmin || hasSubscription;
 
     if (!hasAccess) {
       // User can see ebook details but cannot access the file

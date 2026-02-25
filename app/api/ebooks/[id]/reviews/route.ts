@@ -7,7 +7,7 @@ async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id: ebookId } = await params;
     const { searchParams } = new URL(req.url);
     const userOnly = searchParams.get('userOnly') === 'true';
-    
+
     if (userOnly) {
       // This should be authenticated request
       const authHeader = req.headers.get('Authorization');
@@ -17,7 +17,7 @@ async function getHandler(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const token = authHeader.split('Bearer ')[1];
       const decodedToken = await (await import('@/lib/firebase-admin')).adminAuth.verifyIdToken(token);
-      
+
       const user = await prisma.user.findUnique({
         where: { firebaseUid: decodedToken.uid }
       });
@@ -94,6 +94,54 @@ async function postHandler(req: AuthenticatedRequest, { params }: { params: Prom
         comment,
       }
     });
+
+    // --- NEW TRENDING ACTIVITY LOGIC ---
+    let activityType: 'POSITIVE_RATING' | 'NEUTRAL_RATING' | 'NEGATIVE_RATING';
+    if (rating >= 4) activityType = 'POSITIVE_RATING';
+    else if (rating === 3) activityType = 'NEUTRAL_RATING';
+    else activityType = 'NEGATIVE_RATING';
+
+    // Delete any old rating activities for this user/book to avoid duplicate metrics if they changed their rating
+    await prisma.bookActivity.deleteMany({
+      where: {
+        userId,
+        bookId: ebookId,
+        type: { in: ['POSITIVE_RATING', 'NEUTRAL_RATING', 'NEGATIVE_RATING'] }
+      }
+    });
+
+    // Create new rating activity
+    await prisma.bookActivity.create({
+      data: {
+        bookId: ebookId,
+        userId,
+        type: activityType
+      }
+    });
+
+    // Update Ebook Aggregate Metrics
+    const allReviews = await prisma.review.findMany({ where: { ebookId } });
+    const totalRatings = allReviews.length;
+    const averageRating = totalRatings > 0 ? (allReviews.reduce((sum, r) => sum + r.rating, 0) / totalRatings) : 0;
+    const positiveRatings = allReviews.filter(r => r.rating >= 4).length;
+    const negativeRatings = allReviews.filter(r => r.rating <= 2).length;
+
+    await prisma.ebook.update({
+      where: { id: ebookId },
+      data: {
+        totalRatings,
+        averageRating: parseFloat(averageRating.toFixed(1)), // rounding to 1 decimal
+        positiveRatings,
+        negativeRatings
+      }
+    });
+
+    // Trigger trending recalculation asynchronously
+    fetch(`${req.nextUrl.origin}/api/trending/recalculate?bookId=${ebookId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch(() => { });
+    // -----------------------------------
 
     return NextResponse.json(review);
   } catch (error) {

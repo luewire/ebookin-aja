@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           // 1. Get Token and Custom Claims (Role)
           const tokenResult = await firebaseUser.getIdTokenResult();
-          const role = tokenResult.claims.role as string;
+          let role = tokenResult.claims.role as string;
 
           // 2. Fetch Plan from Database
           // We use the token we just got to authenticate the request
@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (data.user) {
                 if (data.user.plan) plan = data.user.plan;
                 if (data.user.id) dbId = data.user.id;
+                if (data.user.role) role = data.user.role;
               }
             }
           } catch (err) {

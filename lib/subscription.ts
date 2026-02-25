@@ -14,6 +14,62 @@ export interface SubscriptionInfo {
   isActive: boolean;
 }
 
+export async function checkAndNotifySubscriptionExpiry(userId: string, endDate: Date | null, planName?: string) {
+  if (!endDate) return;
+
+  const now = new Date();
+  const timeDiff = endDate.getTime() - now.getTime();
+  const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+  if (daysUntilExpiry <= 0) {
+    // Expired
+    // Check if notification already exists within last 2 days to avoid spam
+    const recentNotification = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: 'SUBSCRIPTION',
+        title: 'Masa Aktif Berakhir',
+        createdAt: { gte: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) }
+      }
+    });
+
+    if (!recentNotification) {
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: 'SUBSCRIPTION',
+          title: 'Masa Aktif Berakhir',
+          message: `Masa aktif langganan Premium Anda${planName ? ` (${planName})` : ''} telah berakhir. Silakan berlangganan kembali untuk melanjutkan akses.`,
+          link: '/pricing'
+        }
+      });
+    }
+  } else if (daysUntilExpiry <= 3) {
+    // About to expire (<= 3 days)
+    // Check if we've already reminded them for this specific expiry window (e.g. today or yesterday)
+    const recentNotification = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: 'SUBSCRIPTION',
+        title: 'Masa Aktif Hampir Habis',
+        createdAt: { gte: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) }
+      }
+    });
+
+    if (!recentNotification) {
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: 'SUBSCRIPTION',
+          title: 'Masa Aktif Hampir Habis',
+          message: `Masa aktif langganan Anda${planName ? ` (${planName})` : ''} akan berakhir dalam ${daysUntilExpiry} hari. Perpanjang sekarang agar akses tetap berjalan.`,
+          link: '/pricing'
+        }
+      });
+    }
+  }
+}
+
 /**
  * Check if user has an active subscription (SERVER-SIDE ONLY)
  * Production-ready: queries database, not client storage
@@ -25,12 +81,16 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
       select: {
         status: true,
         endDate: true,
+        planName: true,
       },
     });
 
     if (!subscription || subscription.status !== 'ACTIVE') {
       return false;
     }
+
+    // Always check for notifications as side effect
+    await checkAndNotifySubscriptionExpiry(userId, subscription.endDate, subscription.planName);
 
     // Check if subscription has expired
     if (subscription.endDate && new Date() > subscription.endDate) {
@@ -68,6 +128,11 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionI
       return null;
     }
 
+    // Always check for notifications as side effect
+    if (subscription.status === 'ACTIVE') {
+      await checkAndNotifySubscriptionExpiry(userId, subscription.endDate, subscription.planName);
+    }
+
     // Check and update if expired
     const isActive = subscription.status === 'ACTIVE' &&
       (!subscription.endDate || new Date() <= subscription.endDate);
@@ -94,7 +159,7 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionI
  */
 export function calculateEndDate(planName: string, startDate: Date = new Date()): Date {
   const endDate = new Date(startDate);
-  
+
   switch (planName) {
     case '1month':
       endDate.setMonth(endDate.getMonth() + 1);
@@ -108,7 +173,7 @@ export function calculateEndDate(planName: string, startDate: Date = new Date())
     default:
       endDate.setMonth(endDate.getMonth() + 1);
   }
-  
+
   return endDate;
 }
 

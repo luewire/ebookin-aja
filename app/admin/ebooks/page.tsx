@@ -68,20 +68,13 @@ export default function ManageEbooksPage() {
       router.push('/login');
       return;
     }
-    if (user.email === 'admin@admin.com') {
+    const isAdmin = user.role === 'Admin' || user.role === 'ADMIN' || user.email === 'admin@admin.com';
+    if (isAdmin) {
       fetchEbooks();
       fetchCategories();
-      return;
+    } else {
+      router.push('/unauthorized');
     }
-    user.getIdTokenResult(true).then((tokenResult) => {
-      const role = tokenResult.claims.role;
-      if (role === 'ADMIN' || role === 'Admin') {
-        fetchEbooks();
-        fetchCategories();
-      } else {
-        router.push('/unauthorized');
-      }
-    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   useEffect(() => {
@@ -143,7 +136,7 @@ export default function ManageEbooksPage() {
     try {
       const response = await fetch('/api/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
-      
+
       const data = await response.json();
       setCategories(data.categories || []);
     } catch (error: any) {
@@ -272,7 +265,7 @@ export default function ManageEbooksPage() {
       // Save URL and publicId to state
       setEpubUrl(data.url);
       setUploadedEpubPublicId(data.publicId);
-      
+
       // Update hidden input manually as fallback
       const contentInput = document.querySelector('input[name="content"]') as HTMLInputElement;
       if (contentInput) {
@@ -299,8 +292,8 @@ export default function ManageEbooksPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-indigo-600"></div>
+      <div className="flex min-h-screen items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-4" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}></div>
       </div>
     );
   }
@@ -311,8 +304,8 @@ export default function ManageEbooksPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Manage Ebooks</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Manage Ebooks</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Add, edit, and organize your platform's library of digital titles.
           </p>
         </div>
@@ -371,19 +364,19 @@ export default function ManageEbooksPage() {
       </div>
 
       {/* Ebooks Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="rounded-xl border overflow-hidden transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
         <table className="w-full">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+          <thead className="border-b transition-colors duration-300" style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">COVER</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">TITLE & DESCRIPTION</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">AUTHOR</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">CATEGORY</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">STATUS</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ACTIONS</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>COVER</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>TITLE & DESCRIPTION</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>AUTHOR</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>CATEGORY</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>STATUS</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>ACTIONS</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          <tbody className="divide-y" style={{ divideColor: 'var(--border)' }}>
             {filteredEbooks.map((ebook) => (
               <tr key={ebook.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="px-6 py-4">
@@ -396,27 +389,35 @@ export default function ManageEbooksPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="font-semibold text-slate-900 dark:text-white mb-1">{ebook.title}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{ebook.description}</div>
+                  <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{ebook.title}</div>
+                  <div className="text-sm line-clamp-1" style={{ color: 'var(--text-secondary)' }}>{ebook.description}</div>
                 </td>
-                <td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">{ebook.author}</td>
+                <td className="px-6 py-4 text-sm" style={{ color: 'var(--text-primary)' }}>{ebook.author}</td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">
                     {ebook.category}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  {ebook.isActive ? (
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                      Published
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                      <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-                      Draft
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    {ebook.isActive ? (
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        Published
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                        Draft
+                      </div>
+                    )}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold w-fit ${ebook.isPremium
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      }`}>
+                      {ebook.isPremium ? '👑 PREMIUM' : '🆓 FREE'}
+                    </span>
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -470,11 +471,11 @@ export default function ManageEbooksPage() {
       {/* Add/Edit Ebook Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-2xl">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)' }}>
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+            <div className="sticky top-0 border-b px-6 py-4 z-10 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
                   {editingEbook ? 'Edit Ebook' : 'Add New Ebook'}
                 </h2>
                 <button
@@ -484,7 +485,8 @@ export default function ManageEbooksPage() {
                     setCoverPreview('');
                     setEpubFileName('');
                   }}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -508,7 +510,7 @@ export default function ManageEbooksPage() {
                   pdfUrl: epubUrl || formData.get('content') as string, // Prioritize state
                   publicId: uploadedEpubPublicId || editingEbook?.publicId, // Include publicId
                   isActive: formData.get('status') === 'active',
-                  isPremium: true,
+                  isPremium: formData.get('isPremium') === 'true',
                   priority: 0,
                 };
 
@@ -617,6 +619,21 @@ export default function ManageEbooksPage() {
                   >
                     <option value="draft">Draft</option>
                     <option value="active">Published</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Access Type *
+                  </label>
+                  <select
+                    name="isPremium"
+                    required
+                    defaultValue={editingEbook ? (editingEbook.isPremium ? 'true' : 'false') : 'true'}
+                    className="w-full px-4 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                  >
+                    <option value="true">👑 Premium</option>
+                    <option value="false">🆓 Free</option>
                   </select>
                 </div>
               </div>

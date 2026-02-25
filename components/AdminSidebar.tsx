@@ -26,6 +26,7 @@ export default function AdminSidebar() {
     {
       section: 'OPERATIONS',
       items: [
+        { href: '/admin/orders', label: 'Orders', icon: 'receipt' },
         { href: '/admin/stats', label: 'Statistics', icon: 'chart' }
       ]
     }
@@ -63,6 +64,12 @@ export default function AdminSidebar() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
         );
+      case 'receipt':
+        return (
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        );
       case 'chart':
         return (
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,14 +82,27 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="group fixed left-0 top-0 h-screen w-20 hover:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out z-50 overflow-hidden shadow-lg hover:shadow-xl">
+    <aside
+      className="group fixed left-0 top-0 h-screen w-20 hover:w-64 transition-all duration-300 ease-in-out z-50 overflow-hidden"
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        borderRight: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-md)',
+      }}
+    >
       {/* Logo */}
-      <div className="h-20 flex items-center justify-center border-b border-slate-200 dark:border-slate-800">
+      <div className="h-20 flex items-center justify-center" style={{ borderBottom: '1px solid var(--border)' }}>
         <Link href="/admin" className="flex items-center gap-3 px-4 w-full overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-            <Image src="/logo.svg" alt="Logo" width={24} height={24} className="invert w-6 h-6" />
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}
+          >
+            <Image src="/logo.svg" alt="Logo" width={24} height={24} className="w-6 h-6" style={{ filter: 'brightness(10)' }} />
           </div>
-          <span className="font-bold text-xl text-slate-900 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+          <span
+            className="font-bold text-xl font-display opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
+            style={{ color: 'var(--text-primary)' }}
+          >
             Ebookin
           </span>
         </Link>
@@ -92,7 +112,10 @@ export default function AdminSidebar() {
       <nav className="p-4 space-y-6">
         {menuItems.map((section) => (
           <div key={section.section}>
-            <h3 className="px-3 mb-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            <h3
+              className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
               {section.section}
             </h3>
             <div className="space-y-1">
@@ -102,10 +125,25 @@ export default function AdminSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all whitespace-nowrap ${isActive
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all whitespace-nowrap"
+                    style={{
+                      backgroundColor: isActive ? 'var(--accent-muted)' : 'transparent',
+                      color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                      borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                      fontWeight: isActive ? 500 : 400,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'var(--bg-overlay)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }
+                    }}
                   >
                     {getIcon(item.icon)}
                     <span className="text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
@@ -120,10 +158,13 @@ export default function AdminSidebar() {
       </nav>
 
       {/* Bottom Link */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 dark:border-slate-800">
+      <div className="absolute bottom-0 left-0 right-0 p-4" style={{ borderTop: '1px solid var(--border)' }}>
         <Link
           href="/"
-          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors whitespace-nowrap"
+          className="flex items-center gap-2 px-3 py-2 text-sm transition-colors whitespace-nowrap"
+          style={{ color: 'var(--text-tertiary)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-tertiary)')}
         >
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

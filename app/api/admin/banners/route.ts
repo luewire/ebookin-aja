@@ -45,7 +45,7 @@ async function getHandler(req: AuthenticatedRequest) {
 async function postHandler(req: AuthenticatedRequest) {
   try {
     const formData = await req.formData();
-    
+
     // Extract text fields
     const title = formData.get('title') as string;
     const subtitle = formData.get('subtitle') as string | null;
@@ -53,6 +53,7 @@ async function postHandler(req: AuthenticatedRequest) {
     const ctaLink = formData.get('ctaLink') as string | null;
     const isActive = formData.get('isActive') === 'false' ? false : true;
     const priority = parseInt(formData.get('priority') as string) || 0;
+    const imagePosition = parseInt(formData.get('imagePosition') as string) || 50;
 
     // Validation
     if (!title) {
@@ -73,8 +74,6 @@ async function postHandler(req: AuthenticatedRequest) {
           maxSizeMB: 2,
           transformation: {
             width: 1920,
-            height: 600,
-            crop: 'fill',
             quality: 'auto',
           },
         });
@@ -96,6 +95,7 @@ async function postHandler(req: AuthenticatedRequest) {
         ctaLabel,
         ctaLink,
         imageUrl,
+        imagePosition,
         isActive,
         priority,
       },
@@ -138,10 +138,10 @@ async function postHandler(req: AuthenticatedRequest) {
 async function patchHandler(req: AuthenticatedRequest) {
   try {
     const formData = await req.formData();
-    
+
     // Get banner ID
     const id = formData.get('id') as string;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'banner id is required' },
@@ -164,17 +164,18 @@ async function patchHandler(req: AuthenticatedRequest) {
 
     // Prepare update data
     const updates: any = {};
-    
+
     if (formData.has('title')) updates.title = formData.get('title') as string;
     if (formData.has('subtitle')) updates.subtitle = formData.get('subtitle') as string | null;
     if (formData.has('ctaLabel')) updates.ctaLabel = formData.get('ctaLabel') as string | null;
     if (formData.has('ctaLink')) updates.ctaLink = formData.get('ctaLink') as string | null;
     if (formData.has('isActive')) updates.isActive = formData.get('isActive') === 'true';
     if (formData.has('priority')) updates.priority = parseInt(formData.get('priority') as string);
+    if (formData.has('imagePosition')) updates.imagePosition = parseInt(formData.get('imagePosition') as string);
 
     // Handle image replacement
     const imageFile = getFileFromFormData(formData, 'image');
-    
+
     if (imageFile) {
       try {
         // Upload new image and delete old one
@@ -186,8 +187,6 @@ async function patchHandler(req: AuthenticatedRequest) {
             maxSizeMB: 2,
             transformation: {
               width: 1920,
-              height: 600,
-              crop: 'fill',
               quality: 'auto',
             },
           }

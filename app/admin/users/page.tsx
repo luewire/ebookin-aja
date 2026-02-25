@@ -52,19 +52,14 @@ export default function UserManagementPage() {
       router.push('/login');
       return;
     }
-    // Same admin check as layout: email or token role
-    if (user.email === 'admin@admin.com') {
+
+    // Check role from AuthProvider (which now includes DB role fallback)
+    const isAdmin = user.role === 'Admin' || user.role === 'ADMIN' || user.email === 'admin@admin.com';
+    if (isAdmin) {
       fetchUsers();
-      return;
+    } else {
+      router.push('/unauthorized');
     }
-    user.getIdTokenResult(true).then((tokenResult) => {
-      const role = tokenResult.claims.role;
-      if (role === 'ADMIN' || role === 'Admin') {
-        fetchUsers();
-      } else {
-        router.push('/unauthorized');
-      }
-    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   const toggleDarkMode = () => {
@@ -235,8 +230,8 @@ export default function UserManagementPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-indigo-600"></div>
+      <div className="flex min-h-screen items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-4" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}></div>
       </div>
     );
   }
@@ -246,8 +241,8 @@ export default function UserManagementPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">User Management</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>User Management</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Manage and monitor user accounts across the platform.
           </p>
         </div>
@@ -297,29 +292,29 @@ export default function UserManagementPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden mb-6">
+      <div className="rounded-xl border overflow-hidden mb-6 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
         <table className="w-full">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+          <thead className="border-b transition-colors duration-300" style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">USER</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ROLE</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">PLAN</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">JOIN DATE</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">STATUS</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ACTIONS</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>USER</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>ROLE</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>PLAN</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>JOIN DATE</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>STATUS</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>ACTIONS</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          <tbody className="divide-y" style={{ divideColor: 'var(--border)' }}>
             {filteredUsers.map((u) => (
               <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-400">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full font-semibold shadow-sm" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))', color: 'white' }}>
                       {u.username.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">@{u.username}</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">{u.email}</div>
+                      <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>@{u.username}</div>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{u.email}</div>
                     </div>
                   </div>
                 </td>
@@ -398,19 +393,19 @@ export default function UserManagementPage() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <div className="rounded-xl border p-6 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-              <svg className="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-300" style={{ backgroundColor: 'var(--bg-overlay)' }}>
+              <svg className="h-6 w-6" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{totalUsers.toLocaleString()}</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Total Registered Users</p>
+          <h3 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{totalUsers.toLocaleString()}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total Registered Users</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <div className="rounded-xl border p-6 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
               <svg className="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,11 +413,11 @@ export default function UserManagementPage() {
               </svg>
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">+{newUsersToday}</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">New Users Today</p>
+          <h3 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>+{newUsersToday}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>New Users Today</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <div className="rounded-xl border p-6 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 dark:bg-red-900/30">
               <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -430,21 +425,22 @@ export default function UserManagementPage() {
               </svg>
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{bannedUsers}</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Accounts Banned</p>
+          <h3 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{bannedUsers}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Accounts Banned</p>
         </div>
       </div>
 
       {/* User Management Modal */}
       {isManageModalOpen && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800">
+          <div className="rounded-2xl w-full max-w-md overflow-hidden shadow-xl border transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Manage User</h3>
+                <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Manage User</h3>
                 <button
                   onClick={() => setIsManageModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
+                  className="hover:opacity-75 transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

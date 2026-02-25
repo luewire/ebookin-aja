@@ -61,13 +61,13 @@ async function handler(req: AuthenticatedRequest) {
         },
       }),
 
-      // Revenue statistics
-      prisma.transaction.aggregate({
+      // Revenue statistics (from approved manual orders)
+      prisma.manualOrder.aggregate({
         where: {
-          transactionStatus: 'SETTLEMENT',
+          status: { in: ['APPROVED', 'AUTO_APPROVED'] },
         },
         _sum: {
-          grossAmount: true,
+          amount: true,
         },
         _count: {
           id: true,
@@ -125,8 +125,8 @@ async function handler(req: AuthenticatedRequest) {
             active: activeReadingSessions,
           },
           revenue: {
-            total: revenueStats._sum.grossAmount || 0,
-            transactionCount: revenueStats._count.id,
+            total: revenueStats?._sum?.amount || 0,
+            transactionCount: revenueStats?._count?.id || 0,
           },
           subscriptions: {
             breakdown: subscriptionBreakdown.map((item: { planName: string; _count: { id: number } }) => ({

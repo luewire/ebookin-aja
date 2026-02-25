@@ -53,8 +53,12 @@ async function handler(req: AuthenticatedRequest) {
 
       // Upload to Supabase Storage
       try {
+        if (!supabaseAdmin) {
+          throw new Error('Supabase client is not initialized');
+        }
+
         const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-        
+
         const { data, error } = await supabaseAdmin.storage
           .from('ebooks')
           .upload(fileName, buffer, {

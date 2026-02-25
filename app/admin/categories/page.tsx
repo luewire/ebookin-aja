@@ -47,18 +47,12 @@ export default function ManageCategoriesPage() {
       router.push('/login');
       return;
     }
-    if (user.email === 'admin@admin.com') {
+    const isAdmin = user.role === 'Admin' || user.role === 'ADMIN' || user.email === 'admin@admin.com';
+    if (isAdmin) {
       fetchCategories();
-      return;
+    } else {
+      router.push('/unauthorized');
     }
-    user.getIdTokenResult(true).then((tokenResult) => {
-      const role = tokenResult.claims.role;
-      if (role === 'ADMIN' || role === 'Admin') {
-        fetchCategories();
-      } else {
-        router.push('/unauthorized');
-      }
-    }).catch(() => router.push('/unauthorized'));
   }, [user, authLoading]);
 
   const toggleDarkMode = () => {
@@ -196,23 +190,23 @@ export default function ManageCategoriesPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--accent)' }}></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                 Category Management
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">
+              <p style={{ color: 'var(--text-secondary)' }}>
                 Manage book categories for better organization and filtering
               </p>
             </div>
@@ -237,30 +231,29 @@ export default function ManageCategoriesPage() {
           {categories.map((category) => (
             <div
               key={category.id}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-lg transition-shadow"
+              className="rounded-xl border p-6 hover:shadow-lg transition-all"
+              style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
+                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                     {category.name}
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                     Slug: {category.slug}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleToggleActive(category)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      category.isActive
-                        ? 'bg-indigo-600'
-                        : 'bg-slate-300 dark:bg-slate-700'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${category.isActive
+                      ? 'bg-indigo-600'
+                      : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        category.isActive ? 'translate-x-6' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${category.isActive ? 'translate-x-6' : 'translate-x-1'
+                        }`}
                     />
                   </button>
                 </div>
@@ -273,11 +266,10 @@ export default function ManageCategoriesPage() {
                   </svg>
                   <span>{category._count?.ebooks || 0} book{category._count?.ebooks !== 1 ? 's' : ''}</span>
                 </div>
-                <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  category.isActive
-                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                }`}>
+                <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${category.isActive
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}>
                   {category.isActive ? 'Active' : 'Inactive'}
                 </div>
               </div>
@@ -299,11 +291,10 @@ export default function ManageCategoriesPage() {
                 <button
                   onClick={() => handleDelete(category.id, category._count?.ebooks || 0)}
                   disabled={(category._count?.ebooks || 0) > 0}
-                  className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    (category._count?.ebooks || 0) > 0
-                      ? 'text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-900 cursor-not-allowed'
-                      : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
-                  }`}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${(category._count?.ebooks || 0) > 0
+                    ? 'text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-900 cursor-not-allowed'
+                    : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
+                    }`}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -327,11 +318,11 @@ export default function ManageCategoriesPage() {
         {/* Add/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl">
+            <div className="relative w-full max-w-md rounded-2xl shadow-2xl transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)' }}>
               {/* Modal Header */}
-              <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+              <div className="border-b px-6 py-4" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
                     {editingCategory ? 'Edit Category' : 'Add New Category'}
                   </h2>
                   <button
@@ -340,7 +331,8 @@ export default function ManageCategoriesPage() {
                       setEditingCategory(null);
                       setCategoryName('');
                     }}
-                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

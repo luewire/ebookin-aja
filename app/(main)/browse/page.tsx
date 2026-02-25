@@ -56,17 +56,18 @@ export default function BrowsePage() {
   const [selectedBook, setSelectedBook] = useState<Ebook | null>(null);
   const [readingProgress, setReadingProgress] = useState<ReadingProgress>({});
   const [banners, setBanners] = useState<any[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
   const itemsPerPage = 12;
   const router = useRouter();
 
   // Get reading progress from localStorage
   const getReadingProgress = useCallback(() => {
     if (!user) return;
-    
+
     try {
       const progress: ReadingProgress = {};
       const prefix = `reading-progress-${user.uid}-`;
-      
+
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith(prefix)) {
@@ -84,7 +85,7 @@ export default function BrowsePage() {
           }
         }
       }
-      
+
       setReadingProgress(progress);
     } catch (error) {
       console.error('Error reading progress:', error);
@@ -101,7 +102,7 @@ export default function BrowsePage() {
     try {
       const response = await fetch('/api/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
-      
+
       const data = await response.json();
       // Only show active categories
       setCategories(data.categories.filter((cat: Category) => cat.isActive));
@@ -149,14 +150,14 @@ export default function BrowsePage() {
 
   const filteredEbooks = ebooks.filter(ebook => {
     const matchesCategory = !selectedCategory || ebook.category === selectedCategory;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       ebook.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ebook.author.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGenre = !selectedGenre || ebook.category === selectedGenre;
-    const matchesPrice = !selectedPrice || 
+    const matchesPrice = !selectedPrice ||
       (selectedPrice === 'free' && !ebook.isPremium) ||
       (selectedPrice === 'premium' && ebook.isPremium);
-    
+
     return matchesCategory && matchesSearch && matchesGenre && matchesPrice;
   });
 
@@ -176,26 +177,32 @@ export default function BrowsePage() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Sidebar skeleton */}
-            <div className="space-y-4">
-              <div className="h-10 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
-              ))}
+            <div className="hidden lg:block space-y-4">
+              <div className="h-14 rounded-xl skeleton animate-pulse" />
+              <div className="space-y-2 mt-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-10 rounded-lg skeleton animate-pulse" />
+                ))}
+              </div>
             </div>
 
             {/* Cards skeleton */}
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 p-4 animate-pulse">
-                  <div className="h-40 rounded-xl bg-slate-200 dark:bg-slate-700 mb-4" />
-                  <div className="h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700 mb-2" />
-                  <div className="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
-                </div>
-              ))}
+            <div className="lg:col-span-3">
+              <div className="h-12 w-64 rounded-xl skeleton mt-2 mb-8 animate-pulse" />
+              <div className="h-12 w-full rounded-xl skeleton mb-8 animate-pulse" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="rounded-2xl p-4 skeleton animate-pulse">
+                    <div className="aspect-[2/3] w-full rounded-xl bg-[var(--bg-elevated)] mb-4" />
+                    <div className="h-4 w-3/4 rounded bg-[var(--bg-elevated)] mb-2" />
+                    <div className="h-3 w-1/2 rounded bg-[var(--bg-elevated)]" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -205,246 +212,316 @@ export default function BrowsePage() {
 
   // Main content
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" style={{ backgroundColor: 'var(--bg-base)' }}>
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar */}
         <aside className="w-full lg:w-64 flex-shrink-0">
-          <div className="sticky top-24 space-y-6">
+          <div className="sticky top-24 space-y-6 animate-fade-in-up">
             {/* Categories */}
-            <div className="rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-6">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  Categories
-                </h3>
-                <div className="space-y-2">
+            <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              <h3 className="flex items-center gap-2 text-lg font-bold font-display mb-6" style={{ color: 'var(--text-primary)' }}>
+                <svg className="h-5 w-5" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Categories
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-300 relative group overflow-hidden"
+                  style={{
+                    backgroundColor: !selectedCategory ? 'var(--accent-glow)' : 'transparent',
+                    color: !selectedCategory ? 'var(--accent)' : 'var(--text-secondary)'
+                  }}
+                >
+                  {!selectedCategory && <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: 'var(--accent)' }} />}
+                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: !selectedCategory ? 'var(--accent)' : 'var(--text-tertiary)' }} />
+                  <span className="font-medium group-hover:text-[var(--text-primary)] transition-colors">All Categories</span>
+                </button>
+                {categories.map((category) => (
                   <button
-                    onClick={() => setSelectedCategory(null)}
-                    className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                      !selectedCategory
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                    }`}
+                    key={category.id}
+                    onClick={() => setSelectedCategory(category.name)}
+                    className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-300 relative group overflow-hidden"
+                    style={{
+                      backgroundColor: selectedCategory === category.name ? 'var(--accent-glow)' : 'transparent',
+                      color: selectedCategory === category.name ? 'var(--accent)' : 'var(--text-secondary)'
+                    }}
                   >
-                    <div className={`h-2 w-2 rounded-full ${!selectedCategory ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`} />
-                    All Categories
+                    {selectedCategory === category.name && <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: 'var(--accent)' }} />}
+                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: selectedCategory === category.name ? 'var(--accent)' : 'var(--text-tertiary)' }} />
+                    <span className="font-medium group-hover:text-[var(--text-primary)] transition-colors">{category.name}</span>
+                    {category._count && category._count.ebooks > 0 && (
+                      <span className="ml-auto text-xs opacity-70 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-overlay)' }}>{category._count.ebooks}</span>
+                    )}
                   </button>
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.name)}
-                      className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedCategory === category.name
-                          ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <div className={`h-2 w-2 rounded-full ${selectedCategory === category.name ? 'bg-blue-600' : 'bg-gray-400 dark:bg-gray-600'}`} />
-                      {category.name}
-                      {category._count && category._count.ebooks > 0 && (
-                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">{category._count.ebooks}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
+            </div>
 
 
-              {/* Upgrade Banner (Only for non-premium users) */}
-              {user?.plan !== 'Premium' && (
-                <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-6 text-white shadow-lg">
-                  <h3 className="text-lg font-bold mb-2">UPGRADE</h3>
-                  <p className="text-sm mb-4 opacity-100 font-medium">Get Unlimited Access to Premium E-books</p>
-                  <button 
-                    onClick={() => setShowPricingModal(true)}
-                    className="w-full rounded-lg bg-white text-blue-600 px-4 py-2 text-sm font-bold hover:bg-blue-50 transition-colors shadow-sm"
-                  >
-                    Go Premium
-                  </button>
-                </div>
-              )}
+            {/* Upgrade Banner (Only for non-premium users) */}
+            {user?.plan !== 'Premium' && (
+              <div className="rounded-2xl relative overflow-hidden p-6 shadow-accent animate-fade-in-up" style={{ background: 'linear-gradient(135deg, var(--accent-muted) 0%, var(--bg-surface) 100%)', border: '1px solid var(--border-accent)' }}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] rounded-full filter blur-[60px] opacity-20 -mr-10 -mt-10"></div>
+                <h3 className="text-lg font-bold font-display mb-2" style={{ color: 'var(--text-primary)' }}>UPGRADE</h3>
+                <p className="text-sm mb-5 font-medium" style={{ color: 'var(--text-secondary)' }}>Get Unlimited Access to Premium E-books</p>
+                <button
+                  onClick={() => setShowPricingModal(true)}
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 relative group overflow-hidden"
+                  style={{ backgroundColor: 'var(--accent)', color: 'white' }}
+                >
+                  <span className="relative z-10">Go Premium</span>
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main className="flex-1 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           {/* Header */}
           <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Discover New Books</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Explore thousands of titles curated just for you.
-              </p>
+            <h1 className="text-4xl md:text-5xl font-bold font-display tracking-wide mb-3" style={{ color: 'var(--text-primary)' }}>Discover New Books</h1>
+            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+              Explore thousands of titles curated just for you.
+            </p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="mb-8">
+            <div className="relative group">
+              <div className="absolute inset-0 rounded-2xl bg-[var(--accent)] opacity-0 group-hover:opacity-5 blur-xl transition-opacity duration-500"></div>
+              <svg className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors duration-300" style={{ color: searchFocused ? 'var(--accent)' : 'var(--text-tertiary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by title, author, or keyword..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                className="w-full rounded-2xl pl-14 pr-6 py-4 text-base transition-all duration-300 outline-none relative z-10"
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: searchFocused ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  boxShadow: searchFocused ? '0 0 0 4px var(--accent-glow)' : 'var(--shadow-sm)'
+                }}
+              />
             </div>
+          </div>
 
-            {/* Search Bar */}
-            <div className="mb-6">
-              <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search by title, author, or keyword..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-12 pr-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
-                />
-              </div>
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-4 mb-8">
+            <select
+              value={selectedGenre}
+              onChange={(e) => setSelectedGenre(e.target.value)}
+              className="rounded-xl px-5 py-3 text-sm font-medium transition-colors outline-none cursor-pointer appearance-none pr-10"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='${encodeURIComponent('#5C5B6E')}' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '16px'
+              }}
+            >
+              <option value="">All Genres</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedLanguage}
+              onChange={(e) => setSelectedLanguage(e.target.value)}
+              className="rounded-xl px-5 py-3 text-sm font-medium transition-colors outline-none cursor-pointer appearance-none pr-10"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='${encodeURIComponent('#5C5B6E')}' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '16px'
+              }}
+            >
+              <option value="">All Languages</option>
+              <option value="en">English</option>
+              <option value="id">Indonesian</option>
+            </select>
+
+            <div className="ml-auto text-sm font-medium px-4 py-2 rounded-xl" style={{ backgroundColor: 'var(--bg-overlay)', color: 'var(--text-secondary)' }}>
+              Showing <span style={{ color: 'var(--text-primary)' }}>{startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredEbooks.length)}</span> of <span style={{ color: 'var(--text-primary)' }}>{filteredEbooks.length}</span>
             </div>
+          </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <select
-                value={selectedGenre}
-                onChange={(e) => setSelectedGenre(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Genre</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.name}>{cat.name}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Language</option>
-                <option value="en">English</option>
-                <option value="id">Indonesian</option>
-              </select>
-
-              <div className="ml-auto text-sm text-gray-600 dark:text-gray-400">
-                Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredEbooks.length)} of {filteredEbooks.length} results
+          {/* Books Grid */}
+          {paginatedEbooks.length === 0 ? (
+            <div className="rounded-2xl border p-16 text-center shadow-sm" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
+              <div className="mb-6 mx-auto w-20 h-20 rounded-full flex items-center justify-center animate-float" style={{ backgroundColor: 'var(--bg-overlay)' }}>
+                <span className="text-4xl">📚</span>
               </div>
+              <h3 className="mb-3 text-2xl font-bold font-display tracking-wide" style={{ color: 'var(--text-primary)' }}>No books found</h3>
+              <p className="text-base" style={{ color: 'var(--text-secondary)' }}>Try adjusting your filters or search query to find what you're looking for.</p>
             </div>
-
-            {/* Books Grid */}
-            {paginatedEbooks.length === 0 ? (
-              <div className="rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-12 text-center">
-                <div className="mb-4 text-5xl">📚</div>
-                <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">No books found</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Try adjusting your filters or search query</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                  {paginatedEbooks.map((ebook) => (
-                    <div key={ebook.id} className="group relative">
-                      {/* Reading Progress Badge */}
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                {paginatedEbooks.map((ebook, index) => (
+                  <div
+                    key={ebook.id}
+                    className="group flex flex-col rounded-2xl p-4 card-hover animate-fade-in-up"
+                    style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', animationDelay: `${index * 50}ms` }}
+                  >
+                    {/* Reading Progress Badge & Premium Badge */}
+                    <div className="absolute top-6 right-6 z-10 flex flex-col gap-2 items-end">
+                      {ebook.isPremium ? (
+                        <div className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wider text-white shadow-lg backdrop-blur-md" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, #fb7185 100%)' }}>
+                          PREMIUM
+                        </div>
+                      ) : (
+                        <div className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wider text-white shadow-lg backdrop-blur-md" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)' }}>
+                          FREE
+                        </div>
+                      )}
                       {readingProgress[ebook.id] > 0 && (
-                        <div className="absolute top-2 right-2 z-10 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1 border border-white/20 shadow-lg">
-                          <p className="text-xs font-bold text-white tracking-wider">
+                        <div className="rounded-full px-3 py-1 border shadow-lg backdrop-blur-md" style={{ backgroundColor: 'rgba(13, 13, 18, 0.75)', borderColor: 'var(--border-accent)' }}>
+                          <p className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent-soft)' }}>
                             {readingProgress[ebook.id] >= 100 ? 'FINISHED' : `${readingProgress[ebook.id]}% READ`}
                           </p>
                         </div>
                       )}
+                    </div>
 
-                      <Link 
-                        href={`/ebooks/${ebook.id}`} 
-                        className="block mb-3"
-                        onClick={(e) => handleBookClick(e, ebook)}
-                      >
-                        <div className="aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-slate-700 shadow-md group-hover:shadow-xl transition-all duration-300">
-                          <img
-                            src={ebook.coverUrl || '/placeholder-book.jpg'}
-                            alt={ebook.title}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      </Link>
-                      
-                      <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                    <Link
+                      href={`/ebooks/${ebook.id}`}
+                      className="block mb-4 relative overflow-hidden rounded-xl aspect-[2/3]"
+                      onClick={(e) => handleBookClick(e, ebook)}
+                    >
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10 duration-300" />
+                      <img
+                        src={ebook.coverUrl || '/placeholder-book.jpg'}
+                        alt={ebook.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </Link>
+
+                    <div className="flex-1 flex flex-col">
+                      <h3 className="mb-1 text-base font-bold font-display leading-tight line-clamp-2 transition-colors group-hover:text-[var(--accent)]" style={{ color: 'var(--text-primary)' }}>
                         {ebook.title}
                       </h3>
-                      <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">{ebook.author}</p>
-                      
-                      {/* Rating Display */}
-                      <div className="flex items-center gap-1 mb-3">
-                        <svg className="h-3.5 w-3.5 text-amber-400 fill-current" viewBox="0 0 20 20">
+                      <p className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                        {ebook.author}
+                      </p>
+
+                      {/* Rating Summary */}
+                      <div className="flex items-center gap-1.5 mt-auto mb-4">
+                        <svg className="h-4 w-4 fill-current" style={{ color: 'var(--accent)' }} viewBox="0 0 20 20">
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                           {ebook.avgRating ? ebook.avgRating.toFixed(1) : '0.0'}
                         </span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           ({ebook.ratingCount || 0})
                         </span>
                       </div>
-                      
+
                       <Link
                         href={`/ebooks/${ebook.id}`}
-                        className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:hover:bg-blue-500 transition-all duration-200"
+                        className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 relative group/btn overflow-hidden"
+                        style={{ backgroundColor: 'var(--bg-overlay)', color: 'var(--text-primary)' }}
                       >
-                        Read Now
+                        <span className="relative z-10 transition-colors group-hover/btn:text-white">Read Now</span>
+                        <div className="absolute inset-0 block opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" style={{ backgroundColor: 'var(--accent)' }}></div>
                       </Link>
                     </div>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-
-                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === pageNum
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-
-                    {totalPages > 5 && (
-                      <>
-                        <span className="text-gray-500">...</span>
-                        <button
-                          onClick={() => setCurrentPage(totalPages)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === totalPages
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                          }`}
-                        >
-                          {totalPages}
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
                   </div>
-                )}
-              </>
-            )}
-          </main>
-        </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-3 py-6">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed group border"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <svg className="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                    const pageNum = i + 1;
+                    const isActive = currentPage === pageNum;
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold transition-all duration-300 border"
+                        style={{
+                          backgroundColor: isActive ? 'var(--accent)' : 'var(--bg-surface)',
+                          borderColor: isActive ? 'var(--accent)' : 'var(--border)',
+                          color: isActive ? 'white' : 'var(--text-secondary)',
+                          boxShadow: isActive ? 'var(--shadow-accent)' : 'none'
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  {totalPages > 5 && (
+                    <>
+                      <span className="flex h-11 items-end px-2" style={{ color: 'var(--text-tertiary)' }}>...</span>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold transition-all duration-300 border"
+                        style={{
+                          backgroundColor: currentPage === totalPages ? 'var(--accent)' : 'var(--bg-surface)',
+                          borderColor: currentPage === totalPages ? 'var(--accent)' : 'var(--border)',
+                          color: currentPage === totalPages ? 'white' : 'var(--text-secondary)',
+                          boxShadow: currentPage === totalPages ? 'var(--shadow-accent)' : 'none'
+                        }}
+                      >
+                        {totalPages}
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed group border"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
       {/* Pricing Modal */}
       <PricingModal

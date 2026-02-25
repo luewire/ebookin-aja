@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AuthenticatedRequest, withAuth } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/prisma';
+import { checkAndNotifySubscriptionExpiry } from '@/lib/subscription';
 
 async function handler(req: AuthenticatedRequest) {
   try {
@@ -21,10 +22,26 @@ async function handler(req: AuthenticatedRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const plan = user.subscription?.status === 'ACTIVE' ? 'Premium' : 'Free';
-    // Also consider role === 'ADMIN' as having access, but "Plan" itself is technically separate.
-    // However, usually Admins have premium access. 
-    // Let's return what we found.
+    let plan = 'Free';
+    let subscription = user.subscription;
+
+    if (subscription && subscription.status === 'ACTIVE') {
+      // Always perform the check to create notifications if needed
+      if (subscription.endDate) {
+        await checkAndNotifySubscriptionExpiry(user.id, subscription.endDate, subscription.planName);
+      }
+
+      if (subscription.endDate && new Date(subscription.endDate) < new Date()) {
+        // Expired
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: 'EXPIRED' }
+        });
+        subscription.status = 'EXPIRED';
+      } else {
+        plan = 'Premium';
+      }
+    }
 
     return NextResponse.json({
       user: {

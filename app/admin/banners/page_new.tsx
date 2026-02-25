@@ -56,10 +56,13 @@ export default function ManageBannersPage() {
     if (!authLoading) {
       if (!user) {
         router.push('/login');
-      } else if (user.email !== 'admin@admin.com') {
-        router.push('/unauthorized');
       } else {
-        fetchBanners();
+        const isAdmin = user.role === 'Admin' || user.role === 'ADMIN' || user.email === 'admin@admin.com';
+        if (!isAdmin) {
+          router.push('/unauthorized');
+        } else {
+          fetchBanners();
+        }
       }
     }
   }, [user, authLoading]);
@@ -456,7 +459,7 @@ export default function ManageBannersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p className="text-slate-600 dark:text-slate-400 mb-4">No banners yet. Create your first banner to get started.</p>
-              <button 
+              <button
                 onClick={openCreateModal}
                 className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
                 Create First Banner
@@ -499,11 +502,10 @@ export default function ManageBannersPage() {
                           <h3 className="font-semibold text-slate-900 dark:text-white">{banner.title}</h3>
                           <button
                             onClick={() => handleToggleActive(banner.id, banner.isActive)}
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                              banner.isActive
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${banner.isActive
                                 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                            }`}
+                              }`}
                           >
                             {banner.isActive ? 'Active' : 'Inactive'}
                           </button>

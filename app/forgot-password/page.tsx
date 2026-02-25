@@ -4,112 +4,138 @@ import { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: false,
-      });
-
+      await sendPasswordResetEmail(auth, email);
       setSuccess(true);
-    } catch (error: any) {
-      console.error('Password reset error:', error);
-      if (error.code === 'auth/user-not-found') {
-        setError('No account found with this email address');
-      } else if (error.code === 'auth/invalid-email') {
-        setError('Invalid email address');
-      } else if (error.code === 'auth/too-many-requests') {
-        setError('Too many requests. Please try again later.');
+    } catch (err: any) {
+      console.error('Forgot password error:', err);
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email address.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please try again later.');
       } else {
-        setError(error.message || 'Failed to send reset email');
+        setError(err.message || 'Failed to send reset email. Please try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md rounded-lg bg-green-50 p-6 text-center">
-          <div className="mb-4 text-4xl">✅</div>
-          <h3 className="mb-2 text-xl font-semibold text-green-900">Check Your Email</h3>
-          <p className="mb-4 text-base text-green-700">
-            We've sent a password reset link to <strong>{email}</strong>
-          </p>
-          <p className="text-sm text-green-600">
-            Click the link in the email to reset your password.
-          </p>
-          <div className="mt-6">
-            <Link
-              href="/login"
-              className="text-base text-blue-600 hover:text-blue-500"
-            >
-              ← Back to login
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900">Reset your password</h2>
-          <p className="mt-2 text-base text-gray-600">
-            Enter your email address and we'll send you a reset link
-          </p>
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundColor: 'var(--bg-base)' }}>
+      <div className="w-full max-w-md animate-fade-in-up">
+        {/* Back link */}
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center gap-2">
+            <Image src="/logo.svg" alt="Ebookin Logo" width={32} height={32} className="h-8 w-8" />
+            <span className="text-xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>Ebookin</span>
+          </Link>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4 text-center">
-              <p className="text-base font-medium text-red-800">{error}</p>
+        <div className="rounded-2xl p-8" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+          {success ? (
+            <div className="text-center animate-scale-fade-in">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}>
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold font-display mb-2" style={{ color: 'var(--text-primary)' }}>Check your email</h2>
+              <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+                We&apos;ve sent a password reset link to <strong style={{ color: 'var(--accent)' }}>{email}</strong>
+              </p>
+              <Link href="/login" className="btn-primary inline-flex rounded-xl px-6 py-2.5 text-sm">
+                Back to Login
+              </Link>
             </div>
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--accent-muted)' }}>
+                  <svg className="h-7 w-7" style={{ color: 'var(--accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>Forgot your password?</h2>
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  No worries! Enter your email and we&apos;ll send you a reset link.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="rounded-lg p-3 animate-shake" style={{ backgroundColor: 'var(--accent-muted)', border: '1px solid var(--border-accent)' }}>
+                    <p className="text-sm text-center" style={{ color: 'var(--accent)' }}>{error}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Email Address</label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="block w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-300"
+                    style={{
+                      backgroundColor: 'var(--bg-elevated)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                    }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full justify-center items-center rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'var(--accent)',
+                    boxShadow: loading ? 'none' : 'var(--shadow-accent)',
+                  }}
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </span>
+                  ) : 'Send Reset Link'}
+                </button>
+              </form>
+            </>
           )}
 
-          <div>
-            <label htmlFor="email" className="block text-base font-medium text-gray-700">
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            {loading ? 'Sending...' : 'Send Reset Link'}
-          </button>
-
-          <div className="text-center">
-            <Link href="/login" className="text-base text-blue-600 hover:text-blue-500">
-              ← Back to login
+          <div className="mt-6 text-center">
+            <Link href="/login" className="inline-flex items-center gap-1 text-sm font-medium transition-colors" style={{ color: 'var(--text-tertiary)' }}>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to login
             </Link>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

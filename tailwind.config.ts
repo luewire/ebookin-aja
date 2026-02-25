@@ -10,12 +10,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#4F46E5",
-        "background-light": "#FAFAFA",
-        "background-dark": "#0F172A",
+        accent: "var(--accent)",
+        "accent-soft": "var(--accent-soft)",
+        "accent-muted": "var(--accent-muted)",
+        "bg-base": "var(--bg-base)",
+        "bg-surface": "var(--bg-surface)",
+        "bg-elevated": "var(--bg-elevated)",
+        "bg-overlay": "var(--bg-overlay)",
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Cormorant Garamond', 'Georgia', 'Times New Roman', 'serif'],
+        body: ['Outfit', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Outfit', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      borderRadius: {
+        'pill': '9999px',
       },
     },
   },

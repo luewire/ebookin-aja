@@ -11,8 +11,11 @@ export async function GET(request: Request) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    if (!adminAuth) {
+      return NextResponse.json({ error: 'Auth service unavailable' }, { status: 503 });
+    }
     const decodedToken = await adminAuth.verifyIdToken(token);
-    
+
     const user = await prisma.user.findUnique({
       where: { firebaseUid: decodedToken.uid },
       select: { role: true }

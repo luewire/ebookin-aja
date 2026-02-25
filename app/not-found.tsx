@@ -1,47 +1,38 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 export default function NotFound() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const savedMode = localStorage.getItem('darkMode') === 'true';
-    if (savedMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
   return (
-    <main className="grid min-h-screen place-items-center bg-gray-50 dark:bg-slate-900 px-6 py-24 sm:py-32 lg:px-8 transition-colors duration-300">
-      <div className="text-center">
-        <p className="text-base font-semibold text-blue-600 dark:text-blue-400">404</p>
-        <h1 className="mt-4 text-5xl font-semibold tracking-tight text-balance text-gray-900 dark:text-white sm:text-7xl">
-          Page not found
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundColor: 'var(--bg-base)' }}>
+      <div className="text-center animate-fade-in-up max-w-md">
+        {/* 404 Gradient Text */}
+        <h1
+          className="text-[120px] sm:text-[160px] font-bold font-display leading-none mb-4 animate-float"
+          style={{
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}
+        >
+          404
         </h1>
-        <p className="mt-6 text-lg font-medium text-pretty text-gray-600 dark:text-gray-400 sm:text-xl/8">
-          Sorry, we couldn't find the page you're looking for.
+
+        <h2 className="text-2xl font-bold font-display mb-3" style={{ color: 'var(--text-primary)' }}>
+          Page Not Found
+        </h2>
+        <p className="text-base mb-8 italic font-display" style={{ color: 'var(--text-secondary)' }}>
+          &ldquo;Looks like this page ran off with a good book.&rdquo;
         </p>
-        <div className="mt-10 flex items-center justify-center gap-x-6">
-          <Link
-            href="/"
-            className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 dark:hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
-          >
-            Go back home
+
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/" className="btn-primary rounded-xl px-6 py-3 text-sm">
+            Go Home
           </Link>
-          <Link href="/" className="text-sm font-semibold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-            Contact support <span aria-hidden="true">&rarr;</span>
+          <Link href="/browse" className="btn-ghost rounded-xl px-6 py-3 text-sm">
+            Browse Books
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

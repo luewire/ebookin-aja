@@ -31,7 +31,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     const [showTOC, setShowTOC] = useState(false);
     const [toc, setToc] = useState<any[]>([]);
     const [isMobile, setIsMobile] = useState(false);
-    const [scrollMode, setScrollMode] = useState(false);
+    const [scrollMode, setScrollMode] = useState(true);
     const [isPullingRefresh, setIsPullingRefresh] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const [annotations, setAnnotations] = useState<any[]>([]);
@@ -67,7 +67,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     progress: percentage,
                 }),
             });
-            
+
             console.log('Progress synced to DB:', percentage + '%');
         } catch (error) {
             console.error('Error saving progress:', error);
@@ -82,7 +82,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             // Check localStorage first (fastest and most up to date for this session)
             const storageKey = `reading-progress-${user.uid}-${bookId}`;
             const localData = localStorage.getItem(storageKey);
-            
+
             if (localData) {
                 const parsed = JSON.parse(localData);
                 return {
@@ -93,7 +93,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             // Then try API if needed (fallback)
             const token = await user.getIdToken();
-            
+
             const response = await fetch(`/api/reading-progress?ebookId=${bookId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -107,7 +107,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         } catch (error) {
             console.error('Error loading progress:', error);
         }
-        
+
         return null;
     }, [user, bookId]);
 
@@ -133,7 +133,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             if (response.ok) {
                 const newAnnotation = await response.json();
                 setAnnotations(prev => [newAnnotation, ...prev]);
-                
+
                 // Add to rendition
                 if (rendition) {
                     if (type === 'highlight') {
@@ -142,7 +142,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                         rendition.annotations.add('underline', selectedRange, {}, undefined, 'bold-marker', { 'font-weight': 'bold', 'text-decoration': 'none', 'border-bottom': '2px solid #5C4033' });
                     }
                 }
-                
+
                 // Clear selection
                 setSelectedRange(null);
                 setSelectionCoords(null);
@@ -169,7 +169,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             if (response.ok) {
                 const data = await response.json();
                 setAnnotations(data);
-                
+
                 // Apply all annotations to rendition
                 data.forEach((ann: any) => {
                     if (ann.type === 'highlight') {
@@ -212,7 +212,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         const checkMobile = () => {
             const mobile = window.innerWidth < 768 || ('ontouchstart' in window);
             setIsMobile(mobile);
-            setScrollMode(mobile); // Mobile always scroll
+            setScrollMode(true); // Always scroll mode
         };
         checkMobile();
         window.addEventListener('resize', checkMobile);
@@ -229,7 +229,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             // Use scrolled flow for mobile/scroll mode which supports continuous scrolling better
             const flow = scrollMode ? 'scrolled' : 'paginated';
-            
+
             const newRendition = newBook.renderTo(viewerRef.current, {
                 width: '100%',
                 height: '100%',
@@ -253,8 +253,8 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             // Register dark theme
             newRendition.themes.register('dark', {
                 body: {
-                    background: '#1A1A1A',
-                    color: '#E8E8E8',
+                    background: '#0D0D12',
+                    color: '#F0EEF6',
                     'font-family': 'Georgia, serif',
                     'font-size': '16px',
                     'line-height': '1.75'
@@ -275,7 +275,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             newRendition.themes.select(theme);
             newRendition.themes.fontSize(`${fontSize}px`);
             newRendition.themes.font(fontFamily);
-            
+
             setRendition(newRendition);
 
             // Load saved position from database
@@ -427,15 +427,15 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     // Handle click on reading area for page navigation (desktop only)
     const handleViewerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (scrollMode || !viewerRef.current || !rendition) return;
-        
+
         const rect = viewerRef.current.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const viewerWidth = rect.width;
-        
+
         // Click on left third - go to previous page
         if (clickX < viewerWidth * 0.33) {
             prevPage();
-        } 
+        }
         // Click on right third - go to next page
         else if (clickX > viewerWidth * 0.67) {
             nextPage();
@@ -445,9 +445,9 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     // Scroll navigation for wheel
     const handleWheel = useCallback((e: WheelEvent) => {
         if (scrollMode || !rendition) return;
-        
+
         e.preventDefault();
-        
+
         if (e.deltaY > 50) {
             nextPage();
         } else if (e.deltaY < -50) {
@@ -460,7 +460,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         if (!viewer || scrollMode) return;
 
         viewer.addEventListener('wheel', handleWheel, { passive: false });
-        
+
         return () => {
             viewer.removeEventListener('wheel', handleWheel);
         };
@@ -475,10 +475,10 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!isMobile || !touchStartRef.current) return;
-        
+
         const touch = e.touches[0];
         const deltaY = touch.clientY - touchStartRef.current.y;
-        
+
         // Pull to refresh
         if (deltaY > 0 && window.scrollY === 0) {
             setPullDistance(Math.min(deltaY, 100));
@@ -490,11 +490,11 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         if (!isMobile || !touchStartRef.current) return;
-        
+
         const touch = e.changedTouches[0];
         const deltaX = touch.clientX - touchStartRef.current.x;
         const deltaY = touch.clientY - touchStartRef.current.y;
-        
+
         // Horizontal swipe for chapter navigation
         if (Math.abs(deltaX) > 100 && Math.abs(deltaX) > Math.abs(deltaY)) {
             if (deltaX > 0) {
@@ -503,12 +503,12 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 nextPage(); // Swipe left = next
             }
         }
-        
+
         // Handle pull to refresh
         if (isPullingRefresh) {
             window.location.reload();
         }
-        
+
         touchStartRef.current = null;
         setPullDistance(0);
         setIsPullingRefresh(false);
@@ -537,20 +537,18 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     const pagesRemaining = Math.max(0, totalPages - currentPage);
 
     return (
-        <div className={`fixed inset-0 z-50 flex flex-col ${
-            theme === 'sepia' ? 'bg-[#F5E6D3]' : theme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-white'
-        }`}>
+        <div className={`fixed inset-0 z-50 flex flex-col ${theme === 'sepia' ? 'bg-[#F5E6D3]' : theme === 'dark' ? 'bg-[#0D0D12]' : 'bg-white'
+            }`}>
 
-            {/* Header */}
-            <div 
-                className={`fixed top-0 left-0 h-1 bg-blue-600 z-[60] transition-all duration-300 ease-out`}
-                style={{ width: `${progress}%` }} 
+            {/* Bottom Progress Bar — Rose Accent */}
+            <div
+                className="fixed bottom-0 left-0 h-[3px] z-[60] transition-all duration-300 ease-out"
+                style={{ width: `${progress}%`, backgroundColor: 'var(--accent)' }}
             />
-            <header className={`flex items-center justify-between px-6 py-4 border-b ${
-                theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' : 
-                theme === 'dark' ? 'bg-[#2A2A2A] border-[#3A3A3A] text-[#E8E8E8]' : 
-                'bg-gray-50 border-gray-200 text-gray-800'
-            } shadow-sm z-10`}>
+            <header className={`flex items-center justify-between px-6 py-4 border-b ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
+                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
+                    'bg-gray-50 border-gray-200 text-gray-800'
+                } shadow-sm z-10`}>
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onClose}
@@ -565,24 +563,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Desktop: Toggle Scroll/Page Mode */}
-                    {!isMobile && (
-                        <button
-                            onClick={toggleScrollMode}
-                            className="p-2 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
-                            title={scrollMode ? 'Switch to Page Mode' : 'Switch to Scroll Mode'}
-                        >
-                            {scrollMode ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                            )}
-                        </button>
-                    )}
+                    {/* Toggle Scroll/Page Mode Removed */}
 
                     {/* Table of Contents Button */}
                     <button
@@ -610,11 +591,10 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
                         {/* Font Settings Dropdown */}
                         {showFontSettings && (
-                            <div className={`absolute right-0 mt-2 w-72 rounded-xl shadow-xl border z-50 ${
-                                theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8]' :
-                                theme === 'dark' ? 'bg-[#2A2A2A] border-[#3A3A3A]' :
-                                'bg-white border-gray-200'
-                            }`}>
+                            <div className={`absolute right-0 mt-2 w-72 rounded-xl shadow-xl border z-50 ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8]' :
+                                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)]' :
+                                    'bg-white border-gray-200'
+                                }`}>
                                 <div className="p-4 space-y-4">
                                     {/* Font Size */}
                                     <div>
@@ -624,13 +604,12 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                                                 <button
                                                     key={size}
                                                     onClick={() => setFontSize(size)}
-                                                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                                        fontSize === size
-                                                            ? theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' :
-                                                              theme === 'dark' ? 'bg-[#3A3A3A] text-white' :
-                                                              'bg-gray-200 text-gray-900'
-                                                            : 'hover:bg-black hover:bg-opacity-10'
-                                                    }`}
+                                                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${fontSize === size
+                                                        ? theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' :
+                                                            theme === 'dark' ? 'bg-[#F43F5E] text-white' :
+                                                                'bg-gray-200 text-gray-900'
+                                                        : 'hover:bg-black hover:bg-opacity-10'
+                                                        }`}
                                                 >
                                                     {size === 18 ? 'M' : size}
                                                 </button>
@@ -644,11 +623,10 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                                         <select
                                             value={fontFamily}
                                             onChange={(e) => setFontFamily(e.target.value)}
-                                            className={`w-full p-2 rounded-lg border ${
-                                                theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
-                                                theme === 'dark' ? 'bg-[#1A1A1A] border-[#3A3A3A] text-[#E8E8E8]' :
-                                                'bg-white border-gray-300'
-                                            }`}
+                                            className={`w-full p-2 rounded-lg border ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
+                                                theme === 'dark' ? 'bg-[#0D0D12] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
+                                                    'bg-white border-gray-300'
+                                                }`}
                                         >
                                             {fontFamilies.map((font) => (
                                                 <option key={font} value={font}>{font}</option>
@@ -662,25 +640,22 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => setTheme('sepia')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                                    theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' : 'hover:bg-black hover:bg-opacity-10'
-                                                }`}
+                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' : 'hover:bg-black hover:bg-opacity-10'
+                                                    }`}
                                             >
                                                 Sepia
                                             </button>
                                             <button
                                                 onClick={() => setTheme('dark')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                                    theme === 'dark' ? 'bg-[#3A3A3A] text-white' : 'hover:bg-black hover:bg-opacity-10'
-                                                }`}
+                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'dark' ? 'bg-[#F43F5E] text-white' : 'hover:bg-black hover:bg-opacity-10'
+                                                    }`}
                                             >
                                                 Dark
                                             </button>
                                             <button
                                                 onClick={() => setTheme('white')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                                    theme === 'white' ? 'bg-gray-200 text-gray-900' : 'hover:bg-black hover:bg-opacity-10'
-                                                }`}
+                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'white' ? 'bg-gray-200 text-gray-900' : 'hover:bg-black hover:bg-opacity-10'
+                                                    }`}
                                             >
                                                 White
                                             </button>
@@ -694,9 +669,8 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     {/* Annotations List Toggle */}
                     <button
                         onClick={() => setShowAnnotationsList(!showAnnotationsList)}
-                        className={`p-2 rounded-lg transition-colors ${
-                            showAnnotationsList ? 'bg-black bg-opacity-10' : 'hover:bg-black hover:bg-opacity-10'
-                        }`}
+                        className={`p-2 rounded-lg transition-colors ${showAnnotationsList ? 'bg-black bg-opacity-10' : 'hover:bg-black hover:bg-opacity-10'
+                            }`}
                         title="Highlights & Marks"
                     >
                         <span className="text-xs font-bold uppercase tracking-tighter">MARK</span>
@@ -708,7 +682,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             <div className="flex-1 relative overflow-hidden">
                 {/* Pull to Refresh Indicator */}
                 {isMobile && pullDistance > 0 && (
-                    <div 
+                    <div
                         className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center transition-all"
                         style={{ height: `${pullDistance}px` }}
                     >
@@ -721,21 +695,19 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 {/* Loading Indicator */}
                 {!isReady && (
                     <div className="absolute inset-0 flex items-center justify-center z-20">
-                        <div className={`animate-spin h-10 w-10 border-4 rounded-full ${
-                            theme === 'sepia' ? 'border-[#D4C4A8] border-t-[#8B6F47]' :
-                            theme === 'dark' ? 'border-[#3A3A3A] border-t-[#60A5FA]' :
-                            'border-gray-200 border-t-blue-600'
-                        }`} />
+                        <div className={`animate-spin h-10 w-10 border-4 rounded-full ${theme === 'sepia' ? 'border-[#D4C4A8] border-t-[#8B6F47]' :
+                            theme === 'dark' ? 'border-[#1A1A24] border-t-[#F43F5E]' :
+                                'border-gray-200 border-t-[#F43F5E]'
+                            }`} />
                     </div>
                 )}
 
                 {/* Table of Contents Sidebar */}
                 {showTOC && (
-                    <div className={`absolute left-0 top-0 bottom-0 w-80 shadow-xl border-r z-40 overflow-y-auto ${
-                        theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033]' :
-                        theme === 'dark' ? 'bg-[#2A2A2A] border-[#3A3A3A] text-[#E8E8E8]' :
-                        'bg-white border-gray-200 text-gray-800'
-                    }`}>
+                    <div className={`absolute left-0 top-0 bottom-0 w-80 shadow-xl border-r z-40 overflow-y-auto ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033]' :
+                        theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
+                            'bg-white border-gray-200 text-gray-800'
+                        }`}>
                         <div className="p-4">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="font-semibold text-lg">Table of Contents</h2>
@@ -763,65 +735,27 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     </div>
                 )}
 
-                <div 
-                    ref={viewerRef} 
+                <div
+                    ref={viewerRef}
                     onClick={handleViewerClick}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    className={`h-full w-full ${scrollMode ? 'overflow-y-auto overflow-x-hidden' : 'cursor-pointer'}`}
-                    style={{ 
+                    className="h-full w-full"
+                    style={{
                         userSelect: 'none',
                         scrollBehavior: 'smooth'
                     }}
                 />
 
-                {/* Navigation Buttons - Only show in pagination mode */}
-                {!scrollMode && (
-                    <>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                prevPage();
-                            }}
-                            className={`absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full shadow-lg transition-all hover:scale-110 focus:outline-none z-40 ${
-                                theme === 'sepia' ? 'bg-[#EDD9C0] text-[#5C4033] hover:bg-[#D4C4A8]' :
-                                theme === 'dark' ? 'bg-[#2A2A2A] text-[#E8E8E8] hover:bg-[#3A3A3A]' :
-                                'bg-white text-gray-800 hover:bg-gray-100'
-                            }`}
-                            title="Previous Page (Left Arrow)"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                nextPage();
-                            }}
-                            className={`absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full shadow-lg transition-all hover:scale-110 focus:outline-none z-40 ${
-                                theme === 'sepia' ? 'bg-[#EDD9C0] text-[#5C4033] hover:bg-[#D4C4A8]' :
-                                theme === 'dark' ? 'bg-[#2A2A2A] text-[#E8E8E8] hover:bg-[#3A3A3A]' :
-                                'bg-white text-gray-800 hover:bg-gray-100'
-                            }`}
-                            title="Next Page (Right Arrow)"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </>
-                )}
+                {/* Navigation Buttons Removed as per request */}
             </div>
 
             {/* Footer */}
-            <footer className={`flex items-center justify-between px-6 py-3 border-t ${
-                theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
-                theme === 'dark' ? 'bg-[#2A2A2A] border-[#3A3A3A] text-[#E8E8E8]' :
-                'bg-gray-50 border-gray-200 text-gray-800'
-            }`}>
+            <footer className={`flex items-center justify-between px-6 py-3 border-t ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
+                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
+                    'bg-gray-50 border-gray-200 text-gray-800'
+                }`}>
                 <div className="flex items-center gap-2">
                     <Image src="/logo.svg" alt="Logo" width={24} height={24} className={`h-6 w-6 ${theme === 'dark' ? '' : 'invert'}`} />
                     <span className="font-semibold text-lg">Ebookin</span>
@@ -841,21 +775,27 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             {/* Selection Popup */}
             {selectionCoords && selectedRange && (
-                <div 
-                    className="fixed z-[100] flex gap-2 bg-white rounded-lg shadow-xl border border-gray-200 p-1 transform -translate-x-1/2 -translate-y-[120%]"
-                    style={{ left: selectionCoords.x, top: selectionCoords.y }}
+                <div
+                    className="fixed z-[100] flex gap-2 rounded-xl shadow-xl p-1 transform -translate-x-1/2 -translate-y-[120%]"
+                    style={{ left: selectionCoords.x, top: selectionCoords.y, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
                 >
                     <button
                         onClick={() => handleAnnotate('highlight')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-yellow-50 text-gray-700 rounded-md transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors"
+                        style={{ color: 'var(--text-primary)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent-muted)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                        <div className="w-4 h-4 rounded-full bg-yellow-400" />
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
                         <span className="text-sm font-medium">Mark</span>
                     </button>
-                    <div className="w-px bg-gray-200" />
+                    <div className="w-px" style={{ backgroundColor: 'var(--border)' }} />
                     <button
                         onClick={() => handleAnnotate('bold')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 text-gray-700 rounded-md transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors"
+                        style={{ color: 'var(--text-primary)' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-overlay)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                         <span className="text-sm font-bold">Bold</span>
                     </button>
@@ -864,14 +804,13 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             {/* Annotations List Sidebar */}
             {showAnnotationsList && (
-                <div className={`fixed inset-y-0 right-0 w-80 shadow-2xl z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${
-                    theme === 'sepia' ? 'bg-[#F5E6D3] border-l border-[#D4C4A8]' : 
-                    theme === 'dark' ? 'bg-[#1A1A1A] border-l border-[#3A3A3A]' : 
-                    'bg-white border-l border-gray-200'
-                }`}>
+                <div className={`fixed inset-y-0 right-0 w-80 shadow-2xl z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${theme === 'sepia' ? 'bg-[#F5E6D3] border-l border-[#D4C4A8]' :
+                    theme === 'dark' ? 'bg-[#13131A] border-l border-[rgba(255,255,255,0.07)]' :
+                        'bg-white border-l border-gray-200'
+                    }`}>
                     <div className="p-4 border-b flex items-center justify-between">
                         <h2 className="font-bold text-lg">Highlights & Marks</h2>
-                        <button 
+                        <button
                             onClick={() => setShowAnnotationsList(false)}
                             className="p-1 hover:bg-black hover:bg-opacity-10 rounded-full"
                         >
@@ -885,27 +824,25 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                             <p className="text-sm opacity-60 text-center py-8">No marks yet. Select text to highlight or bold it.</p>
                         ) : (
                             annotations.map((ann) => (
-                                <div 
-                                    key={ann.id} 
-                                    className={`p-3 rounded-xl border group relative transition-all cursor-pointer hover:shadow-md ${
-                                        theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8]' : 
-                                        theme === 'dark' ? 'bg-[#2A2A2A] border-[#3A3A3A]' : 
-                                        'bg-gray-50 border-gray-200'
-                                    }`}
+                                <div
+                                    key={ann.id}
+                                    className={`p-3 rounded-xl border group relative transition-all cursor-pointer hover:shadow-md ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8]' :
+                                        theme === 'dark' ? 'bg-[#1A1A24] border-[rgba(255,255,255,0.07)]' :
+                                            'bg-gray-50 border-gray-200'
+                                        }`}
                                     onClick={() => {
                                         rendition?.display(ann.cfiRange);
                                         if (isMobile) setShowAnnotationsList(false);
                                     }}
                                 >
                                     <div className="flex items-start justify-between mb-2">
-                                        <div className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                                            ann.type === 'highlight' 
-                                                ? 'bg-yellow-400 text-yellow-900' 
-                                                : 'bg-gray-800 text-white'
-                                        }`}>
+                                        <div className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${ann.type === 'highlight'
+                                            ? 'bg-yellow-400 text-yellow-900'
+                                            : 'bg-gray-800 text-white'
+                                            }`}>
                                             {ann.type}
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 deleteAnnotation(ann.id, ann.cfiRange, ann.type);

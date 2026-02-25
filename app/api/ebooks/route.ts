@@ -18,8 +18,11 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = { isActive: true };
-    
+    const where: any = {
+      isActive: true,
+      trendingScore: { gte: 0 }
+    };
+
     if (category) {
       // Find category by name
       const categoryRecord = await prisma.category.findFirst({
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
         where.categoryId = categoryRecord.id;
       }
     }
-    
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ trendingScore: 'desc' }, { priority: 'desc' }, { createdAt: 'desc' }],
         include: {
           category: {
             select: {
@@ -67,8 +70,8 @@ export async function GET(req: NextRequest) {
 
     const ebooksWithRating = ebooks.map((ebook: any) => {
       const totalRatings = ebook.reviews?.length || 0;
-      const avgRating = totalRatings > 0 
-        ? ebook.reviews.reduce((acc: number, rev: any) => acc + rev.rating, 0) / totalRatings 
+      const avgRating = totalRatings > 0
+        ? ebook.reviews.reduce((acc: number, rev: any) => acc + rev.rating, 0) / totalRatings
         : 0;
 
       return {

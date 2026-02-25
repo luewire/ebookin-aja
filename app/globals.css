@@ -1,76 +1,358 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @config "../tailwind.config.ts";
 
-@font-face {
-  font-family: 'Plus Jakarta Sans';
-  src: url('/fonts/PlusJakartaSans[wght].woff') format('woff-variations');
-  font-weight: 200 800;
-  font-style: normal;
-  font-display: swap;
-}
+/* ═══════════════════════════════════════════
+   EBOOKIN AJA — DESIGN SYSTEM
+   Dark Elegant Theme with Rose Accents
+   ═══════════════════════════════════════════ */
 
+/* ── Dark Mode (Default) ── */
 :root {
-  --background: #FAFAFA;
-  --foreground: #0F172A;
+  /* Backgrounds */
+  --bg-base: #0D0D12;
+  --bg-surface: #13131A;
+  --bg-elevated: #1A1A24;
+  --bg-overlay: #22222E;
+
+  /* Rose Accent Scale */
+  --accent: #F43F5E;
+  --accent-soft: #FB7185;
+  --accent-muted: #4C1D2E;
+  --accent-glow: rgba(244, 63, 94, 0.25);
+
+  /* Text */
+  --text-primary: #F0EEF6;
+  --text-secondary: #8B8A9B;
+  --text-tertiary: #52515F;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-accent: rgba(244, 63, 94, 0.35);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-accent: 0 0 24px rgba(244, 63, 94, 0.2), 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* Font Families */
+  --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Outfit', system-ui, -apple-system, sans-serif;
+  /* Nav Backgrounds */
+  --nav-bg-scrolled: rgba(13, 13, 18, 0.85);
 }
 
-:root.dark {
-  --background: #0F172A;
-  --foreground: #F1F5F9;
+/* ── Light Mode ── */
+[data-theme="light"] {
+  --bg-base: #FAF9FC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F3F2F7;
+  --bg-overlay: #E8E7EF;
+  --accent: #E11D48;
+  --accent-soft: #F43F5E;
+  --accent-muted: #FFE4EA;
+  --accent-glow: rgba(225, 29, 72, 0.15);
+  --text-primary: #0D0D12;
+  --text-secondary: #5C5B6E;
+  --text-tertiary: #9998A8;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-accent: rgba(225, 29, 72, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-accent: 0 0 24px rgba(225, 29, 72, 0.12), 0 8px 32px rgba(0, 0, 0, 0.1);
+
+  /* Nav Backgrounds */
+  --nav-bg-scrolled: rgba(250, 249, 252, 0.85);
 }
 
+/* ── Logo Filter Logic ── */
+.logo-filter {
+  filter: invert(0);
+}
+
+[data-theme="light"] .logo-filter {
+  filter: invert(1);
+}
+
+/* ── Tailwind Theme Inline ── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+/* ═══ BASE STYLES ═══ */
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-html.dark body {
-  background-color: #0F172A;
-  color: #F1F5F9;
+/* ── Selection Highlight ── */
+::selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
 }
 
-/* Profile Menu Animations */
+::-moz-selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+/* ── Focus States ── */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Links ── */
+a {
+  transition: color 0.3s ease;
+}
+
+/* ═══ TYPOGRAPHY ═══ */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* ═══ GLASS EFFECT ═══ */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* ═══ ANIMATIONS & KEYFRAMES ═══ */
+
+/* Slide Down */
 @keyframes slideDown {
   from {
     opacity: 0;
     transform: translateY(-10px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
+/* Fade In */
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
+/* Fade In Down */
 @keyframes fadeInDown {
   from {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+/* Fade In Up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale Fade In */
+@keyframes scaleFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Slide In From Left (underline) */
+@keyframes slideInLeft {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* Float / Bob */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* Pulse Dot */
+@keyframes pulseDot {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+}
+
+/* Skeleton Shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Spin */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Shake */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* Stagger Slide In */
+@keyframes staggerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Confetti Burst */
+@keyframes confettiBurst {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-200px) rotate(720deg) scale(0);
+  }
+}
+
+/* Glow Pulse */
+@keyframes glowPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 16px rgba(244, 63, 94, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 32px rgba(244, 63, 94, 0.4);
+  }
+}
+
+/* ═══ UTILITY CLASSES ═══ */
 .animate-slide-down {
   animation: slideDown 0.2s ease-out forwards;
 }
@@ -81,4 +363,184 @@ html.dark body {
 
 .animate-fade-in-down {
   animation: fadeInDown 0.3s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-scale-fade-in {
+  animation: scaleFadeIn 0.3s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-glow {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Stagger children delay utility */
+.stagger-1 {
+  animation-delay: 50ms;
+}
+
+.stagger-2 {
+  animation-delay: 100ms;
+}
+
+.stagger-3 {
+  animation-delay: 150ms;
+}
+
+.stagger-4 {
+  animation-delay: 200ms;
+}
+
+.stagger-5 {
+  animation-delay: 250ms;
+}
+
+.stagger-6 {
+  animation-delay: 300ms;
+}
+
+.stagger-7 {
+  animation-delay: 350ms;
+}
+
+.stagger-8 {
+  animation-delay: 400ms;
+}
+
+/* ─── Skeleton Loading ─── */
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--bg-elevated) 25%,
+      var(--bg-overlay) 37%,
+      var(--bg-elevated) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* ─── Rose Underline Hover (nav links) ─── */
+.nav-link {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+/* ─── Gradient Text ─── */
+.text-gradient-rose {
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Button Styles ─── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-accent);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(244, 63, 94, 0.05);
+}
+
+/* ─── Card Hover Lift ─── */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-accent);
+}
+
+/* ─── Scroll Reveal (used with IntersectionObserver) ─── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Hidden Scrollbar (for horizontal scroll) ─── */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

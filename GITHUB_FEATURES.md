@@ -1,9 +1,5 @@
 # ebookin-aja-main
 
-![GitHub stars](https://img.shields.io/github/stars/ebookin-aja-main?style=social)
-![GitHub forks](https://img.shields.io/github/forks/ebookin-aja-main?style=social)
-![GitHub issues](https://img.shields.io/github/issues/ebookin-aja-main)
-
 Project ebookin-aja-main adalah platform ebook digital dengan berbagai fitur lengkap untuk pengguna dan admin.
 
 ## Fitur Utama

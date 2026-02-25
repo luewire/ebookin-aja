@@ -14,9 +14,12 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (savedTheme === 'light') {
+      setDarkMode(false);
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
       setDarkMode(true);
-      document.documentElement.classList.add('dark');
+      document.documentElement.removeAttribute('data-theme');
     }
   }, []);
 
@@ -64,53 +67,53 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
     setDarkMode(newDarkMode);
 
     if (newDarkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.removeAttribute('data-theme');
       localStorage.setItem('theme', 'dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
       localStorage.setItem('theme', 'light');
     }
   };
 
   if (loading || checkingAuth || !isAuthorized) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
         {/* Skeleton Loading Animation */}
         <div className="w-full max-w-7xl px-8 space-y-6">
           {/* Header Skeleton */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
+            <div className="w-12 h-12 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
             <div className="flex-1">
-              <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded animate-pulse mb-2"></div>
-              <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
+              <div className="h-6 w-48 rounded animate-pulse mb-2" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
+              <div className="h-4 w-32 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
             </div>
           </div>
 
           {/* Stats Cards Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-slate-200 dark:border-slate-800">
+              <div key={i} className="rounded-xl p-6 border transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
-                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-full animate-pulse"></div>
+                  <div className="w-12 h-12 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
+                  <div className="h-6 w-24 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
                 </div>
-                <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded animate-pulse mb-2"></div>
-                <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
+                <div className="h-4 w-32 rounded animate-pulse mb-2" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
+                <div className="h-8 w-24 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
               </div>
             ))}
           </div>
 
           {/* Table Skeleton */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="rounded-xl border overflow-hidden transition-colors duration-300" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)' }}>
             <div className="p-6 space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-800 animate-pulse"></div>
+                  <div className="w-10 h-10 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded animate-pulse w-3/4"></div>
-                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded animate-pulse w-1/2"></div>
+                    <div className="h-4 rounded animate-pulse w-3/4" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
+                    <div className="h-3 rounded animate-pulse w-1/2" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
                   </div>
-                  <div className="w-20 h-8 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
+                  <div className="w-20 h-8 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-overlay)' }}></div>
                 </div>
               ))}
             </div>
@@ -121,17 +124,17 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: 'var(--bg-base)' }}>
       {/* Sidebar - Tidak akan reload */}
       <AdminSidebar />
 
       <div className="ml-20">
         {/* Top Header - Tidak akan reload */}
-        <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <header className="sticky top-0 z-40 border-b transition-colors duration-300" style={{ backgroundColor: 'var(--nav-bg-scrolled)', borderColor: 'var(--border)', backdropFilter: 'blur(12px)' }}>
           <div className="px-8 py-4 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Dashboard</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Admin Dashboard</h1>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                 Real-time platform performance and reading metrics across your library.
               </p>
             </div>
@@ -140,7 +143,8 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
               {/* Dark Mode Toggle */}
               <button
                 onClick={toggleDarkMode}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ color: 'var(--text-secondary)' }}
               >
                 {darkMode ? (
                   <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,12 +158,12 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
               </button>
 
               {/* User Avatar */}
-              <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3 pl-4 border-l" style={{ borderColor: 'var(--border)' }}>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">{user?.displayName || 'Admin'}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">Super Admin</p>
+                  <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{user?.displayName || 'Admin'}</p>
+                  <p className="text-xs leading-tight" style={{ color: 'var(--text-secondary)' }}>Super Admin</p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white font-bold shadow-sm">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-soft))' }}>
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="Admin" className="w-full h-full rounded-full object-cover" />
                   ) : (

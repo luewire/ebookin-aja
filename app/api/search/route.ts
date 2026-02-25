@@ -46,7 +46,8 @@ async function handler(req: AuthenticatedRequest) {
         let books: any[] = [];
         let users: any[] = [];
 
-        if (tab === 'books') {
+        if (tab === 'books' || tab === 'all') {
+            const booksTake = tab === 'all' ? 6 : take;
             books = await prisma.ebook.findMany({
                 where: {
                     OR: [
@@ -62,15 +63,18 @@ async function handler(req: AuthenticatedRequest) {
                     coverUrl: true,
                     category: { select: { name: true } },
                 },
-                skip,
-                take,
+                skip: tab === 'all' ? 0 : skip,
+                take: booksTake,
             });
-        } else if (tab === 'people') {
+        }
+
+        if (tab === 'people' || tab === 'all') {
+            const usersTake = tab === 'all' ? 6 : take;
+            const skipVal = tab === 'all' ? 0 : skip;
+
             const { PrismaClient } = require('@prisma/client');
             const localPrisma = new PrismaClient();
             try {
-                // Fetch people via RAW SQL to avoid relation issues with stale client
-                // We'll fetch basic info first, then augment with follow status
                 const sqlQuery = `
                     SELECT id, name, username, "photoUrl", bio 
                     FROM "User" 
@@ -80,10 +84,9 @@ async function handler(req: AuthenticatedRequest) {
                     LIMIT $${userId ? 3 : 2} OFFSET $${userId ? 4 : 3}
                 `;
 
-                const queryParams = userId ? [`%${query}%`, userId, take, skip] : [`%${query}%`, take, skip];
+                const queryParams = userId ? [`%${query}%`, userId, usersTake, skipVal] : [`%${query}%`, usersTake, skipVal];
                 users = await localPrisma.$queryRawUnsafe(sqlQuery, ...queryParams);
 
-                // Augment with follow states via RAW SQL
                 if (userId && users.length > 0) {
                     const augmentedUsers = [];
                     for (const u of users) {

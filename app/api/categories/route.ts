@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { adminAuth } from '@/lib/firebase-admin';
 
 /**
  * GET /api/categories
@@ -48,6 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    const { adminAuth } = await import('@/lib/firebase-admin');
     const decodedToken = await adminAuth.verifyIdToken(token);
     const user = await prisma.user.findUnique({
       where: { firebaseUid: decodedToken.uid }

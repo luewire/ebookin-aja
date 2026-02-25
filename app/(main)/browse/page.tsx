@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useInView } from 'react-intersection-observer';
 import PricingModal from '@/components/PricingModal';
 
 interface ReadingProgress {
@@ -59,6 +60,18 @@ export default function BrowsePage() {
   const [searchFocused, setSearchFocused] = useState(false);
   const itemsPerPage = 12;
   const router = useRouter();
+
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: '400px', // trigger 400px before reaching the bottom
+  });
+
+  // When intersection observer triggers, load more
+  useEffect(() => {
+    if (inView) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  }, [inView]);
 
   // Get reading progress from localStorage
   const getReadingProgress = useCallback(() => {
@@ -170,9 +183,10 @@ export default function BrowsePage() {
     }
   };
 
-  const totalPages = Math.ceil(filteredEbooks.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedEbooks = filteredEbooks.slice(startIndex, startIndex + itemsPerPage);
+  // Instead of limiting by page, we slice from 0 to current Items limit
+  const currentLimit = currentPage * itemsPerPage;
+  const paginatedEbooks = filteredEbooks.slice(0, currentLimit);
+  const hasMore = currentLimit < filteredEbooks.length;
 
   // Show loading state
   if (loading) {
@@ -356,7 +370,7 @@ export default function BrowsePage() {
             </select>
 
             <div className="ml-auto text-sm font-medium px-4 py-2 rounded-xl" style={{ backgroundColor: 'var(--bg-overlay)', color: 'var(--text-secondary)' }}>
-              Showing <span style={{ color: 'var(--text-primary)' }}>{startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredEbooks.length)}</span> of <span style={{ color: 'var(--text-primary)' }}>{filteredEbooks.length}</span>
+              Showing <span style={{ color: 'var(--text-primary)' }}>{paginatedEbooks.length}</span> of <span style={{ color: 'var(--text-primary)' }}>{filteredEbooks.length}</span>
             </div>
           </div>
 
@@ -445,77 +459,10 @@ export default function BrowsePage() {
                 ))}
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 py-6">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed group border"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      borderColor: 'var(--border)',
-                      color: 'var(--text-primary)'
-                    }}
-                  >
-                    <svg className="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                    const pageNum = i + 1;
-                    const isActive = currentPage === pageNum;
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className="flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold transition-all duration-300 border"
-                        style={{
-                          backgroundColor: isActive ? 'var(--accent)' : 'var(--bg-surface)',
-                          borderColor: isActive ? 'var(--accent)' : 'var(--border)',
-                          color: isActive ? 'white' : 'var(--text-secondary)',
-                          boxShadow: isActive ? 'var(--shadow-accent)' : 'none'
-                        }}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-
-                  {totalPages > 5 && (
-                    <>
-                      <span className="flex h-11 items-end px-2" style={{ color: 'var(--text-tertiary)' }}>...</span>
-                      <button
-                        onClick={() => setCurrentPage(totalPages)}
-                        className="flex h-11 w-11 items-center justify-center rounded-xl text-base font-bold transition-all duration-300 border"
-                        style={{
-                          backgroundColor: currentPage === totalPages ? 'var(--accent)' : 'var(--bg-surface)',
-                          borderColor: currentPage === totalPages ? 'var(--accent)' : 'var(--border)',
-                          color: currentPage === totalPages ? 'white' : 'var(--text-secondary)',
-                          boxShadow: currentPage === totalPages ? 'var(--shadow-accent)' : 'none'
-                        }}
-                      >
-                        {totalPages}
-                      </button>
-                    </>
-                  )}
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed group border"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      borderColor: 'var(--border)',
-                      color: 'var(--text-primary)'
-                    }}
-                  >
-                    <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
+              {/* Infinite Scroll Trigger */}
+              {hasMore && (
+                <div ref={ref} className="flex justify-center items-center py-10 w-full mt-4">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}></div>
                 </div>
               )}
             </>

@@ -11,7 +11,7 @@ import { hasActiveSubscription } from '@/lib/subscription';
 async function getHandler(req: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) {
   // Extract ID from params
   const { id: ebookId } = await params;
-  
+
   if (!ebookId) {
     return NextResponse.json(
       { error: 'Ebook ID is required' },
@@ -54,7 +54,7 @@ async function getHandler(req: AuthenticatedRequest, { params }: { params: Promi
     // All ebooks require subscription to access
     // Check if user has active subscription
     const hasAccess = await hasActiveSubscription(userId);
-    
+
     if (!hasAccess) {
       // User can see ebook details but cannot access the file
       return NextResponse.json(
@@ -71,7 +71,7 @@ async function getHandler(req: AuthenticatedRequest, { params }: { params: Promi
     }
 
     // User has subscription, return full ebook data including file URL
-    return NextResponse.json({ 
+    return NextResponse.json({
       ebook: {
         ...ebook,
         category: ebook.category.name // Return category name
@@ -89,3 +89,4 @@ async function getHandler(req: AuthenticatedRequest, { params }: { params: Promi
 }
 
 export const GET = withAuth(getHandler);
+export const revalidate = 3600;

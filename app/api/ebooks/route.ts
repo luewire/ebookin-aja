@@ -50,12 +50,17 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
         orderBy: [{ trendingScore: 'desc' }, { priority: 'desc' }, { createdAt: 'desc' }],
-        include: {
+        select: {
+          id: true,
+          title: true,
+          author: true,
+          description: true,
+          coverUrl: true,
+          categoryId: true,
+          isPremium: true,
           category: {
             select: {
-              id: true,
-              name: true,
-              slug: true
+              name: true
             }
           },
           reviews: {
@@ -111,4 +116,4 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 1800;

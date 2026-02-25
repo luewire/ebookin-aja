@@ -336,6 +336,7 @@ export default function Navbar() {
                   onClick={() => setShowMobileMenu(!showMobileMenu)}
                   className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg transition-all"
                   style={{ color: 'var(--text-secondary)' }}
+                  aria-label={showMobileMenu ? "Close mobile menu" : "Open mobile menu"}
                 >
                   {showMobileMenu ? (
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -502,7 +503,7 @@ export default function Navbar() {
                 <Image src="/logo.svg" alt="Ebookin Logo" width={32} height={32} className="h-8 w-8 logo-filter" priority />
                 <span className="text-xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>Ebookin</span>
               </Link>
-              <button onClick={() => setShowMobileMenu(false)} style={{ color: 'var(--text-secondary)' }}>
+              <button onClick={() => setShowMobileMenu(false)} style={{ color: 'var(--text-secondary)' }} aria-label="Close menu">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>

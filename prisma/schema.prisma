@@ -67,6 +67,7 @@ model Subscription {
   @@index([userId])
   @@index([status])
   @@index([endDate])
+  @@index([userId, endDate])
 }
 
 model Transaction {
@@ -141,6 +142,7 @@ model Ebook {
   @@index([categoryId])
   @@index([priority])
   @@index([trendingScore(sort: Desc)])
+  @@index([createdAt])
 }
 
 model Banner {
@@ -352,4 +354,6 @@ model BookActivity {
   @@index([userId])
   @@index([type])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([bookId, type])
 }

@@ -2,10 +2,30 @@
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 
+import { Cormorant_Garamond, Outfit } from 'next/font/google';
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-display',
+});
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-body',
+});
+
 export const metadata: Metadata = {
-  title: "Ebookin Aja — Your Premium Reading Platform",
+  title: {
+    default: "Ebookin Aja — Your Premium Reading Platform",
+    template: "%s | Ebookin Aja"
+  },
   description: "Browse, read, and manage your ebook library with Ebookin Aja. A premium dark reading experience with rose accents.",
-  keywords: ["ebook", "reading", "library", "dark mode", "premium reader"],
+  keywords: ["ebook", "reading", "library", "dark mode", "premium reader", "buku online"],
   authors: [{ name: "Ebookin Aja Team" }],
   openGraph: {
     title: "Ebookin Aja — Your Premium Reading Platform",
@@ -56,7 +76,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body suppressHydrationWarning className="font-body antialiased" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <body suppressHydrationWarning className={`${cormorant.variable} ${outfit.variable} font-body antialiased`} style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <AuthProvider>{children}</AuthProvider>
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>

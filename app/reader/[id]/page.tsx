@@ -3,7 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import EpubReader from '@/components/EpubReader';
+import dynamic from 'next/dynamic';
+
+const EpubReader = dynamic(() => import('@/components/EpubReader'), {
+    ssr: false,
+    loading: () => (
+        <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
+            <div className="animate-pulse flex flex-col items-center">
+                <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div className="text-xl text-gray-600 dark:text-gray-400">Starting Reader...</div>
+            </div>
+        </div>
+    )
+});
 
 interface Ebook {
     id: string;

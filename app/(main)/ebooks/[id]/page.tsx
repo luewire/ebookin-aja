@@ -265,7 +265,7 @@ export default function EbookDetailPage() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Subscription API response:', data);
+        // Got subscription response
         const hasActive = data.hasSubscription || false; // Fixed: use 'hasSubscription' not 'hasActiveSubscription'
         setHasSubscription(hasActive);
         return hasActive;
@@ -300,7 +300,7 @@ export default function EbookDetailPage() {
       router.push(`/reader/${ebook.id}`);
     } else {
       // User needs subscription, show pricing modal
-      console.log('User needs subscription, showing modal');
+      // User needs subscription, showing modal
       setShowPricingModal(true);
     }
   };

@@ -113,7 +113,7 @@ async function handler(req: AuthenticatedRequest) {
           {
             resource_type: 'image',
             folder: 'ebook-covers',
-            public_id: `${Date.now()} -${Math.random().toString(36).substring(7)} `,
+            public_id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
             transformation: [
               { width: 800, height: 1200, crop: 'limit' },
               { quality: 'auto:good' }

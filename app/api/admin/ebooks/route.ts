@@ -3,7 +3,6 @@ import { withAdmin, AuthenticatedRequest } from '@/lib/auth-middleware';
 import { prisma } from '@/lib/prisma';
 import cloudinary from 'cloudinary';
 import { adminStorage } from '@/lib/firebase-admin';
-import { supabaseAdmin } from '@/lib/supabase';
 
 // Configure Cloudinary
 cloudinary.v2.config({
@@ -191,7 +190,7 @@ async function postHandler(req: AuthenticatedRequest) {
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       ebook: {
         ...ebook,
         category: ebook.category.name // Return category name
@@ -276,7 +275,7 @@ async function patchHandler(req: AuthenticatedRequest) {
       },
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       ebook: {
         ...ebook,
         category: ebook.category.name // Return category name
@@ -323,16 +322,8 @@ async function deleteHandler(req: AuthenticatedRequest) {
     if (ebook.publicId) {
       try {
         if (ebook.pdfUrl?.includes('supabase.co')) {
-          // It's in Supabase Storage
-          if (!supabaseAdmin) {
-            console.warn('Supabase not configured, skipping storage deletion');
-          } else {
-            const { error } = await supabaseAdmin.storage
-              .from('ebooks')
-              .remove([ebook.publicId]);
-            if (error) throw error;
-            console.log(`Deleted file from Supabase: ${ebook.publicId}`);
-          }
+          // Old Supabase storage - ignore deletion since it's being removed
+          console.warn('Supabase storage is no longer supported, skipping file deletion for: ', ebook.publicId);
         } else if (ebook.publicId.startsWith('ebooks/')) {
           // It's in Firebase Storage
           const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.replace(/^gs:\/\//, '');

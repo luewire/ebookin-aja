@@ -82,7 +82,7 @@ export default function ManageEbooksPage() {
       setCoverPreview(editingEbook.coverUrl || '');
       setCoverUrl(editingEbook.coverUrl || '');
       setEpubUrl(editingEbook.pdfUrl || ''); // Reset EPUB URL on edit
-      if (editingEbook.pdfUrl && (editingEbook.pdfUrl.includes('/uploads/') || editingEbook.pdfUrl.includes('supabase.co'))) {
+      if (editingEbook.pdfUrl && (editingEbook.pdfUrl.includes('/uploads/') || editingEbook.pdfUrl.includes('supabase.co') || editingEbook.pdfUrl.includes('storage.googleapis.com'))) {
         setEpubFileName('Book file attached');
       }
     } else {
@@ -412,8 +412,8 @@ export default function ManageEbooksPage() {
                       </div>
                     )}
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold w-fit ${ebook.isPremium
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                       }`}>
                       {ebook.isPremium ? '👑 PREMIUM' : '🆓 FREE'}
                     </span>

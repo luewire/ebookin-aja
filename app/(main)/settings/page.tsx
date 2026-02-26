@@ -26,10 +26,10 @@ function SettingsContent() {
   const [loading, setLoading] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [isError, setIsError] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [cancellingSub, setCancellingSub] = useState(false);
 
-  // Password change states
-  const [currentPassword, setCurrentPassword] = useState('');
+  // Handlers for profile update and tabst [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -411,6 +411,47 @@ function SettingsContent() {
       });
     } catch (error) {
       console.error('Failed to update profile:', error);
+    }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setSuccessMessage(message);
+    setIsError(type === 'error');
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user) return;
+
+    // Explicit confirmation before cancelling
+    if (!window.confirm("Are you sure you want to cancel your subscription? You will still be able to access premium books until the end of your billing cycle.")) {
+      return;
+    }
+
+    setCancellingSub(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        showToast('Subscription successfully cancelled.', 'success');
+        // Force a page refresh to get updated AuthProvider state immediately
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to cancel subscription');
+      }
+    } catch (error: any) {
+      console.error('Error cancelling subscription:', error);
+      showToast(error.message, 'error');
+    } finally {
+      setCancellingSub(false);
     }
   };
 
@@ -1162,10 +1203,14 @@ function SettingsContent() {
                   </div>
 
                   {/* Cancel Subscription */}
-                  {user?.subscription?.status === 'ACTIVE' && (
+                  {(user?.subscription?.status === 'ACTIVE' || user?.subscription?.status === 'PENDING') && (
                     <div className="pt-8 mt-8 border-t" style={{ borderColor: 'var(--border)' }}>
-                      <button className="text-sm font-bold text-[#ef4444] hover:text-white transition-colors">
-                        Cancel Subscription
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={cancellingSub}
+                        className="text-sm font-bold text-[#ef4444] hover:text-white transition-colors disabled:opacity-50"
+                      >
+                        {cancellingSub ? 'Cancelling...' : 'Cancel Subscription'}
                       </button>
                       <p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>If you cancel, you'll still have access to premium features until the end of your billing cycle.</p>
                     </div>

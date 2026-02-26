@@ -85,7 +85,7 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
       },
     });
 
-    if (!subscription || subscription.status !== 'ACTIVE') {
+    if (!subscription || (subscription.status !== 'ACTIVE' && subscription.status !== 'CANCELLED')) {
       return false;
     }
 
@@ -134,7 +134,7 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionI
     }
 
     // Check and update if expired
-    const isActive = subscription.status === 'ACTIVE' &&
+    const isActive = (subscription.status === 'ACTIVE' || subscription.status === 'CANCELLED') &&
       (!subscription.endDate || new Date() <= subscription.endDate);
 
     if (!isActive && subscription.status === 'ACTIVE') {
@@ -146,7 +146,7 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionI
 
     return {
       ...subscription,
-      isActive: isActive && subscription.status === 'ACTIVE',
+      isActive: isActive,
     };
   } catch (error) {
     console.error('Error getting subscription:', error);

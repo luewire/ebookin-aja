@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -55,16 +56,56 @@ function SettingsContent() {
     }
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = (e: React.MouseEvent) => {
+    e.preventDefault();
     const newIsDark = !isDark;
-    setIsDark(newIsDark);
-    if (newIsDark) {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('theme', 'light');
+
+    const performThemeChange = () => {
+      setIsDark(newIsDark);
+      if (newIsDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      }
+    };
+
+    if (!document.startViewTransition) {
+      performThemeChange();
+      return;
     }
+
+    const x = e.clientX;
+    const y = e.clientY;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        performThemeChange();
+      });
+    });
+
+    transition.ready.then(() => {
+      const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`,
+      ];
+
+      document.documentElement.animate(
+        {
+          clipPath: clipPath,
+        },
+        {
+          duration: 500,
+          easing: 'ease-in',
+          pseudoElement: '::view-transition-new(root)',
+        }
+      );
+    });
   };
 
 
@@ -648,15 +689,19 @@ function SettingsContent() {
                         <h3 className="text-base font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>Dark Mode</h3>
                         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Switch between light and dark themes</p>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={isDark}
-                          onChange={toggleTheme}
+                      <div
+                        onClick={toggleTheme}
+                        className="relative inline-flex items-center cursor-pointer w-12 h-6"
+                      >
+                        <div
+                          className="w-12 h-6 rounded-full transition-colors"
+                          style={{ backgroundColor: isDark ? 'var(--accent)' : 'var(--bg-elevated)' }}
                         />
-                        <div className="w-12 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--accent)] transition-colors" style={{ backgroundColor: 'var(--bg-elevated)' }}></div>
-                      </label>
+                        <div
+                          className="absolute top-[2px] h-5 w-5 rounded-full bg-white border border-gray-300 transition-all"
+                          style={{ left: isDark ? 'calc(100% - 22px)' : '2px' }}
+                        />
+                      </div>
                     </div>
                   </div>
 

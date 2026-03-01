@@ -1,9 +1,104 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+
+const SlideToSubmitButton = ({ onComplete, disabled, isLoading }: { onComplete: () => void, disabled: boolean, isLoading: boolean }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [sliderLeft, setSliderLeft] = useState(0);
+    const [isSuccess, setIsSuccess] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // If disabled or loading, reset
+    useEffect(() => {
+        if (disabled || isLoading) {
+            setSliderLeft(0);
+            setIsSuccess(false);
+        }
+    }, [disabled, isLoading]);
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        if (disabled || isLoading || isSuccess) return;
+        setIsDragging(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!isDragging || disabled || isLoading || isSuccess) return;
+        if (!containerRef.current) return;
+
+        const container = containerRef.current.getBoundingClientRect();
+        const newLeft = e.clientX - container.left - 24; // 24 = half thumb width roughly
+
+        const maxLeft = container.width - 56; // container width - thumb width (48px) - padding (8px)
+        const clampedLeft = Math.max(0, Math.min(newLeft, maxLeft));
+
+        setSliderLeft(clampedLeft);
+    };
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        if (!containerRef.current) return;
+
+        e.currentTarget.releasePointerCapture(e.pointerId);
+
+        const container = containerRef.current.getBoundingClientRect();
+        const maxLeft = container.width - 56;
+
+        if (sliderLeft >= maxLeft * 0.9) { // 90% threshold
+            setSliderLeft(maxLeft);
+            setIsSuccess(true);
+            onComplete();
+        } else {
+            setSliderLeft(0); // bounce back
+        }
+    };
+
+    return (
+        <div
+            ref={containerRef}
+            className={`relative w-full h-[60px] rounded-xl overflow-hidden shadow-sm select-none touch-none ${disabled ? 'bg-black/5 opacity-60' : 'bg-[var(--bg-elevated)] border border-[var(--border)]'}`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+        >
+            {/* Progress Fill */}
+            <div
+                className="absolute top-0 left-0 h-full bg-[var(--accent)] opacity-10 pointer-events-none transition-all"
+                style={{ width: `${sliderLeft + 48}px`, transitionDuration: isDragging ? '0ms' : '300ms' }}
+            />
+
+            {/* Text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12">
+                <span className={`font-bold text-sm sm:text-base whitespace-nowrap transition-opacity ${sliderLeft > 50 ? 'opacity-0' : 'opacity-100'} ${disabled ? 'text-gray-500' : 'text-[var(--accent)]'}`}>
+                    {isLoading ? 'Memproses...' : disabled ? 'Lengkapi Data Dulu' : 'Geser untuk Kirim >>>'}
+                </span>
+            </div>
+
+            {/* Thumb */}
+            <div
+                className={`absolute top-1.5 bottom-1.5 w-[52px] rounded-lg flex items-center justify-center pointer-events-none transition-all shadow-md ${disabled ? 'bg-gray-400' : 'bg-[var(--accent)]'}`}
+                style={{
+                    left: '4px',
+                    transform: `translateX(${sliderLeft}px)`,
+                    transitionDuration: isDragging ? '0ms' : '300ms',
+                }}
+            >
+                {isLoading ? (
+                    <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                ) : isSuccess ? (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                ) : (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                )}
+            </div>
+        </div>
+    );
+};
 
 function OrderContent() {
     const { user, loading: authLoading } = useAuth();
@@ -131,8 +226,9 @@ function OrderContent() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+
         if (!formData.name || !formData.proofOfPayment) {
             setError('Harap lengkapi semua data dan upload bukti pembayaran.');
             return;
@@ -146,7 +242,13 @@ function OrderContent() {
             const token = await user?.getIdToken();
             if (!token) throw new Error('Not authenticated');
 
-            const response = await fetch('/api/orders', {
+            // Instantly show success state while processing in background
+            setSuccess(true);
+            setAutoApproved(false);
+            setOcrMessage('Bukti pembayaran Anda sedang diverifikasi secara otomatis oleh sistem AI di latar belakang. Proses ini memakan waktu beberapa saat sebelum status pesanan Anda diperbarui.');
+
+            // Fire and forget fetch request
+            fetch('/api/orders', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -157,26 +259,14 @@ function OrderContent() {
                     amount: selectedPlanDetails.amount,
                     proofOfPayment: formData.proofOfPayment
                 })
-            });
+            }).catch(err => console.error('Background order processing failed:', err));
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.fraudDetected) {
-                    throw new Error(data.error || 'Order ditolak oleh sistem keamanan.');
-                }
-                throw new Error(data.error || 'Failed to submit order');
-            }
-
-            setAutoApproved(data.autoApproved || false);
-            setOcrMessage(data.message || '');
-            setSuccess(true);
         } catch (err: any) {
             console.error('Submit error:', err);
             setError(err.message || 'Terjadi kesalahan. Silakan coba lagi.');
-        } finally {
             setIsSubmitting(false);
             setIsOcrProcessing(false);
+            setSuccess(false);
         }
     };
 
@@ -322,27 +412,13 @@ function OrderContent() {
                                 )}
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={isSubmitting || uploadingImage || !formData.proofOfPayment}
-                                className="w-full py-4 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{ backgroundColor: 'var(--accent)', color: '#fff', boxShadow: 'var(--shadow-md)' }}
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        {isOcrProcessing ? 'Memverifikasi bukti pembayaran...' : 'Memproses...'}
-                                    </>
-                                ) : 'Kirim Bukti Pembayaran'}
-                            </button>
-                            {isOcrProcessing && (
-                                <p className="text-xs text-center mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                                    Sistem sedang memvalidasi bukti pembayaran Anda secara otomatis...
-                                </p>
-                            )}
+                            <div className="pt-2">
+                                <SlideToSubmitButton
+                                    onComplete={() => handleSubmit()}
+                                    disabled={isSubmitting || uploadingImage || !formData.proofOfPayment}
+                                    isLoading={isSubmitting}
+                                />
+                            </div>
                         </form>
                     </div>
                 </div>

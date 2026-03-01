@@ -12,6 +12,12 @@ interface EpubReaderProps {
     onClose?: () => void;
 }
 
+const EPUB_THEME_COLORS = {
+    sepia: { bg: '#F5E6D3', text: '#5C4033' },
+    dark: { bg: '#0D0D12', text: '#F8F6FF' },
+    white: { bg: '#FFFFFF', text: '#2C2C2C' }
+} as const;
+
 export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: EpubReaderProps) {
     const { user } = useAuth();
     const viewerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +45,13 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     const [selectedText, setSelectedText] = useState<string>('');
     const [selectionCoords, setSelectionCoords] = useState<{ x: number, y: number } | null>(null);
     const [showAnnotationsList, setShowAnnotationsList] = useState(false);
+    const [showToolbar, setShowToolbar] = useState(true);
+    const [bookmarks, setBookmarks] = useState<any[]>([]);
+    const [showBookmarks, setShowBookmarks] = useState(false);
+    const toolbarTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [lastReadLocation, setLastReadLocation] = useState<string | null>(null);
+    const [lastReadProgress, setLastReadProgress] = useState(0);
+    const justSelectedRef = useRef(false);
 
     // Save progress to database
     const saveProgressToDatabase = useCallback(async (locationCfi: string, percentage: number) => {
@@ -139,7 +152,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     if (type === 'highlight') {
                         rendition.annotations.add('highlight', selectedRange, {}, undefined, 'highlight-marker', { fill: '#FFD700', 'fill-opacity': '0.3' });
                     } else {
-                        rendition.annotations.add('underline', selectedRange, {}, undefined, 'bold-marker', { 'font-weight': 'bold', 'text-decoration': 'none', 'border-bottom': '2px solid #5C4033' });
+                        rendition.annotations.add('mark', selectedRange, {}, undefined, 'bold-marker');
                     }
                 }
 
@@ -149,6 +162,17 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 if (window.getSelection) {
                     window.getSelection()?.removeAllRanges();
                 }
+                // Clear selection inside epub iframe contents
+                // @ts-ignore
+                if (rendition?.getContents) {
+                    // @ts-ignore
+                    rendition.getContents().forEach((content: any) => {
+                        content.window?.getSelection?.()?.removeAllRanges();
+                    });
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Create annotation failed:', errorData);
             }
         } catch (error) {
             console.error('Error creating annotation:', error);
@@ -175,7 +199,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     if (ann.type === 'highlight') {
                         rendition.annotations.add('highlight', ann.cfiRange, {}, undefined, 'highlight-marker', { fill: '#FFD700', 'fill-opacity': '0.3' });
                     } else {
-                        rendition.annotations.add('underline', ann.cfiRange, {}, undefined, 'bold-marker', { 'font-weight': 'bold', 'text-decoration': 'none', 'border-bottom': '2px solid #5C4033' });
+                        rendition.annotations.add('mark', ann.cfiRange, {}, undefined, 'bold-marker');
                     }
                 });
             }
@@ -199,13 +223,150 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             if (response.ok) {
                 setAnnotations(prev => prev.filter(ann => ann.id !== id));
                 if (rendition) {
-                    rendition.annotations.remove(cfiRange, type === 'highlight' ? 'highlight' : 'underline');
+                    rendition.annotations.remove(cfiRange, type === 'highlight' ? 'highlight' : 'mark');
                 }
             }
         } catch (error) {
             console.error('Error deleting annotation:', error);
         }
     }, [user, bookId, rendition]);
+
+    useEffect(() => {
+        if (!bookId) return;
+        try {
+            const stored = localStorage.getItem(`bookmarks-${bookId}`);
+            if (stored) setBookmarks(JSON.parse(stored));
+        } catch (e) { }
+    }, [bookId]);
+
+    useEffect(() => {
+        if (!showBookmarks || !bookId) return;
+        try {
+            const stored = localStorage.getItem(`bookmarks-${bookId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    setBookmarks(parsed);
+                }
+            }
+        } catch (error) {
+            console.error('Error reloading bookmarks:', error);
+        }
+    }, [showBookmarks, bookId]);
+
+    const toggleBookmark = useCallback(() => {
+        if (!location || !bookId) return;
+        const locStr = location.toString();
+
+        let newBookmarks;
+        if (bookmarks.some(b => b.cfi === locStr)) {
+            newBookmarks = bookmarks.filter(b => b.cfi !== locStr);
+        } else {
+            newBookmarks = [...bookmarks, { cfi: locStr, progress, timestamp: Date.now(), title: `Page ${currentPage}` }];
+        }
+
+        setBookmarks(newBookmarks);
+        localStorage.setItem(`bookmarks-${bookId}`, JSON.stringify(newBookmarks));
+    }, [location, bookId, bookmarks, progress, currentPage]);
+
+    const isBookmarked = location ? bookmarks.some(b => b.cfi === location.toString()) : false;
+
+    const anyPanelOpen = showFontSettings || showTOC || showBookmarks || showAnnotationsList;
+
+    const resetToolbarTimer = useCallback(() => {
+        if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+        setShowToolbar(true);
+        if (!(showFontSettings || showTOC || showBookmarks || showAnnotationsList)) {
+            toolbarTimerRef.current = setTimeout(() => setShowToolbar(false), 4000);
+        }
+    }, [showFontSettings, showTOC, showBookmarks, showAnnotationsList]);
+
+    const applyReaderStyles = useCallback((targetRendition: Rendition) => {
+        const colors = EPUB_THEME_COLORS[theme];
+
+        targetRendition.themes.select(theme);
+        targetRendition.themes.fontSize(`${fontSize}px`);
+        targetRendition.themes.font(fontFamily);
+
+        targetRendition.themes.override('color', colors.text);
+        targetRendition.themes.override('background', colors.bg);
+        targetRendition.themes.override('background-color', colors.bg);
+        targetRendition.themes.override('font-size', `${fontSize}px`);
+        targetRendition.themes.override('font-family', `"${fontFamily}", serif`);
+
+        const applyToContents = (contents: any) => {
+            const doc = contents?.document;
+            if (!doc) return;
+
+            doc.documentElement?.style.setProperty('background-color', colors.bg, 'important');
+            doc.documentElement?.style.setProperty('color', colors.text, 'important');
+
+            doc.body?.style.setProperty('background-color', colors.bg, 'important');
+            doc.body?.style.setProperty('color', colors.text, 'important');
+            doc.body?.style.setProperty('font-size', `${fontSize}px`, 'important');
+            doc.body?.style.setProperty('font-family', `"${fontFamily}", serif`, 'important');
+            doc.body?.style.setProperty('line-height', '1.75', 'important');
+
+            const existingStyle = doc.getElementById('dynamic-book-styles') as HTMLStyleElement | null;
+            const styleElement = existingStyle ?? doc.createElement('style');
+            if (!existingStyle) {
+                styleElement.id = 'dynamic-book-styles';
+                doc.head.appendChild(styleElement);
+            }
+
+            styleElement.textContent = `
+                html, body {
+                    background: ${colors.bg} !important;
+                    background-color: ${colors.bg} !important;
+                    color: ${colors.text} !important;
+                    -webkit-text-fill-color: ${colors.text} !important;
+                    font-family: "${fontFamily}", serif !important;
+                    font-size: ${fontSize}px !important;
+                    line-height: 1.75 !important;
+                    opacity: 1 !important;
+                }
+                body * {
+                    color: ${colors.text} !important;
+                    -webkit-text-fill-color: ${colors.text} !important;
+                    font-family: inherit !important;
+                    opacity: 1 !important;
+                }
+                a {
+                    color: ${colors.text} !important;
+                    -webkit-text-fill-color: ${colors.text} !important;
+                }
+                .bold-marker,
+                .bold-marker * {
+                    font-weight: 700 !important;
+                    font-style: normal !important;
+                    text-decoration: none !important;
+                    color: ${colors.text} !important;
+                    -webkit-text-fill-color: ${colors.text} !important;
+                }
+            `;
+        };
+
+        // @ts-ignore
+        if (targetRendition.getContents) {
+            // @ts-ignore
+            targetRendition.getContents().forEach(applyToContents);
+        }
+    }, [theme, fontSize, fontFamily]);
+
+    // Toolbar auto-hide timer
+    useEffect(() => {
+        if (anyPanelOpen) {
+            if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+            setShowToolbar(true);
+            return;
+        }
+        // Start timer when all panels closed
+        resetToolbarTimer();
+
+        return () => {
+            if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+        };
+    }, [anyPanelOpen, resetToolbarTimer]);
 
     // Detect mobile device
     useEffect(() => {
@@ -239,51 +400,29 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 allowScriptedContent: true
             });
 
-            // Register sepia theme
-            newRendition.themes.register('sepia', {
-                body: {
-                    background: '#F5E6D3',
-                    color: '#5C4033',
-                    'font-family': 'Georgia, serif',
-                    'font-size': '16px',
-                    'line-height': '1.75'
-                }
+            // Register themes with !important to override epub styles
+            Object.entries(EPUB_THEME_COLORS).forEach(([t, colors]) => {
+                newRendition.themes.register(t, {
+                    body: { background: `${colors.bg} !important`, color: `${colors.text} !important` },
+                    'p, span, div, h1, h2, h3, h4, h5, h6, li, a': { color: `${colors.text} !important`, background: 'transparent !important' }
+                });
             });
-
-            // Register dark theme
-            newRendition.themes.register('dark', {
-                body: {
-                    background: '#0D0D12',
-                    color: '#F0EEF6',
-                    'font-family': 'Georgia, serif',
-                    'font-size': '16px',
-                    'line-height': '1.75'
-                }
-            });
-
-            // Register white theme
-            newRendition.themes.register('white', {
-                body: {
-                    background: '#FFFFFF',
-                    color: '#2C2C2C',
-                    'font-family': 'Georgia, serif',
-                    'font-size': '16px',
-                    'line-height': '1.75'
-                }
-            });
-
-            newRendition.themes.select(theme);
-            newRendition.themes.fontSize(`${fontSize}px`);
-            newRendition.themes.font(fontFamily);
 
             setRendition(newRendition);
+            applyReaderStyles(newRendition);
 
             // Load saved position from database
             loadProgressFromDatabase().then((savedProgress) => {
                 if (savedProgress?.currentLocation) {
-                    newRendition.display(savedProgress.currentLocation);
+                    setLastReadLocation(savedProgress.currentLocation);
+                    setLastReadProgress(savedProgress.progress || 0);
+                    newRendition.display(savedProgress.currentLocation).then(() => {
+                        applyReaderStyles(newRendition);
+                    });
                 } else {
-                    newRendition.display();
+                    newRendition.display().then(() => {
+                        applyReaderStyles(newRendition);
+                    });
                 }
             });
 
@@ -302,12 +441,22 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 if (current && total) {
                     setCurrentPage(current);
                     setTotalPages(total);
-                    setProgress(Math.round((current / total) * 100));
+                    const currentProgress = Math.round((current / total) * 100);
+                    setProgress(currentProgress);
+
+                    setLastReadProgress((prev) => {
+                        if (currentProgress >= prev) {
+                            setLastReadLocation(loc.start.cfi);
+                            return currentProgress;
+                        }
+                        return prev;
+                    });
                 }
             });
 
             newRendition.on('rendered', () => {
                 setIsReady(true);
+                applyReaderStyles(newRendition);
             });
 
             // Handle selection for annotations
@@ -317,17 +466,24 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 const text = range.toString();
 
                 if (text && text.length > 0) {
+                    const iframeRect = viewerRef.current?.querySelector('iframe')?.getBoundingClientRect();
+
                     setSelectedRange(cfiRange);
                     setSelectedText(text);
                     setSelectionCoords({
-                        x: rect.left + rect.width / 2,
-                        y: rect.top
+                        x: (iframeRect?.left || 0) + rect.left + rect.width / 2,
+                        y: (iframeRect?.top || 0) + rect.top
                     });
+                    justSelectedRef.current = true;
+                    setTimeout(() => {
+                        justSelectedRef.current = false;
+                    }, 250);
                 }
             });
 
             // Close selection popup when clicking elsewhere
             newRendition.on('click', () => {
+                if (justSelectedRef.current) return;
                 setSelectedRange(null);
                 setSelectionCoords(null);
             });
@@ -367,25 +523,32 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
     // Sync theme, font size, and font family to rendition when they change
     useEffect(() => {
-        if (rendition) {
-            rendition.themes.select(theme);
-            rendition.themes.fontSize(`${fontSize}px`);
-            rendition.themes.font(fontFamily);
-        }
-    }, [rendition, theme, fontSize, fontFamily]);
+        if (!rendition) return;
 
-    // Auto-save position every 3 seconds
+        const handleRendered = () => {
+            applyReaderStyles(rendition);
+        };
+
+        applyReaderStyles(rendition);
+        rendition.on('rendered', handleRendered);
+
+        return () => {
+            rendition.off('rendered', handleRendered);
+        };
+    }, [rendition, applyReaderStyles]);
+
+    // Auto-save last read (furthest progress) every 3 seconds
     useEffect(() => {
-        if (!location || !bookUrl) return;
+        if (!lastReadLocation || !bookUrl) return;
 
         if (saveTimerRef.current) {
             clearInterval(saveTimerRef.current);
         }
 
         saveTimerRef.current = setInterval(() => {
-            if (location && bookId) {
+            if (lastReadLocation && bookId) {
                 // Save to database
-                saveProgressToDatabase(location.toString(), progress);
+                saveProgressToDatabase(lastReadLocation, lastReadProgress);
             }
         }, 3000);
 
@@ -394,16 +557,9 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                 clearInterval(saveTimerRef.current);
             }
         };
-    }, [location, bookUrl, bookId, progress, saveProgressToDatabase]);
+    }, [lastReadLocation, bookUrl, bookId, lastReadProgress, saveProgressToDatabase]);
 
-    // Update theme when changed
-    useEffect(() => {
-        if (rendition) {
-            rendition.themes.select(theme);
-            rendition.themes.fontSize(`${fontSize}px`);
-            rendition.themes.font(fontFamily);
-        }
-    }, [theme, fontSize, fontFamily, rendition]);
+
 
     const prevPage = useCallback(() => {
         if (rendition && !scrollMode) {
@@ -417,15 +573,37 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         }
     }, [rendition, scrollMode]);
 
-    const handleTOCItemClick = (href: string) => {
-        if (rendition) {
-            rendition.display(href);
-            setShowTOC(false);
+    const navigateToLocation = useCallback(async (target: string, closePanel?: () => void) => {
+        if (!rendition) return;
+
+        try {
+            closePanel?.();
+            await rendition.display(target);
+
+            if (scrollMode) {
+                // @ts-ignore
+                const range = rendition.getRange?.(target);
+                const container = range?.startContainer;
+                const element = container instanceof Element ? container : container?.parentElement;
+
+                if (element && typeof element.scrollIntoView === 'function') {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        } catch (error) {
+            console.error('Error navigating to location:', error);
         }
+    }, [rendition, scrollMode]);
+
+    const handleTOCItemClick = (href: string) => {
+        void navigateToLocation(href, () => setShowTOC(false));
     };
 
-    // Handle click on reading area for page navigation (desktop only)
+    // Handle click on reading area - toggle toolbar + page navigation (desktop paginated)
     const handleViewerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        // Always reset toolbar timer on click/tap
+        resetToolbarTimer();
+
         if (scrollMode || !viewerRef.current || !rendition) return;
 
         const rect = viewerRef.current.getBoundingClientRect();
@@ -440,7 +618,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         else if (clickX > viewerWidth * 0.67) {
             nextPage();
         }
-    }, [rendition, prevPage, nextPage, scrollMode]);
+    }, [rendition, prevPage, nextPage, scrollMode, resetToolbarTimer]);
 
     // Scroll navigation for wheel
     const handleWheel = useCallback((e: WheelEvent) => {
@@ -535,52 +713,80 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     const fontSizes = [12, 15, 16, 18];
     const fontFamilies = ['Georgia', 'Arial', 'Times New Roman', 'Verdana'];
     const pagesRemaining = Math.max(0, totalPages - currentPage);
+    const showLastReadButton = !!lastReadLocation && (lastReadProgress - progress >= 2);
 
     return (
         <div className={`fixed inset-0 z-50 flex flex-col ${theme === 'sepia' ? 'bg-[#F5E6D3]' : theme === 'dark' ? 'bg-[#0D0D12]' : 'bg-white'
             }`}>
 
-            {/* Bottom Progress Bar — Rose Accent */}
+            {/* Bottom Progress Bar removed here - will add to Footer */}
+
+            {/* Desktop hover zone for toolbar — active only when toolbar is hidden */}
             <div
-                className="fixed bottom-0 left-0 h-[3px] z-[60] transition-all duration-300 ease-out"
-                style={{ width: `${progress}%`, backgroundColor: 'var(--accent)' }}
+                className="fixed top-0 left-0 right-0 h-20 z-[55] hidden md:block"
+                onMouseEnter={resetToolbarTimer}
             />
-            <header className={`flex items-center justify-between px-6 py-4 border-b ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
-                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
-                    'bg-gray-50 border-gray-200 text-gray-800'
-                } shadow-sm z-10`}>
-                <div className="flex items-center gap-4">
+
+            <header
+                onMouseEnter={resetToolbarTimer}
+                className={`fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-3 md:px-6 py-3 md:py-4 transition-all duration-500 ease-in-out ${showToolbar ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'} ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
+                theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[var(--border)] text-[var(--text-primary)] backdrop-blur-md' :
+                    'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#1F2937] backdrop-blur-md'
+                } border-b shadow-sm`}>
+                <div className="flex items-center gap-2 md:gap-4 min-w-0">
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
+                        className="p-1.5 md:p-2 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
                         title="Close"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
-                    <h1 className="font-semibold text-lg truncate max-w-md">{bookTitle}</h1>
+                    <h1 className="font-semibold text-sm md:text-lg truncate max-w-[36vw] md:max-w-md">{bookTitle}</h1>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                     {/* Toggle Scroll/Page Mode Removed */}
 
                     {/* Table of Contents Button */}
                     <button
-                        onClick={() => setShowTOC(!showTOC)}
-                        className="p-2 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
-                        title="Table of Contents"
+                        onClick={() => { setShowTOC(!showTOC); setShowBookmarks(false); setShowFontSettings(false); setShowAnnotationsList(false); }}
+                        className={`p-1.5 md:p-2 rounded-xl transition-colors ${showTOC ? 'text-[var(--accent)] bg-[var(--accent-glow)]' : 'hover:bg-black hover:bg-opacity-10'}`}
+                        title="Chapter Navigation"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
 
+                    {/* Bookmarks Toggle (Add/Remove) */}
+                    <button
+                        onClick={toggleBookmark}
+                        className={`p-1.5 md:p-2 rounded-xl transition-all ${isBookmarked ? 'text-[var(--accent)] bg-[var(--accent-glow)]' : 'hover:bg-black hover:bg-opacity-10'}`}
+                        title={isBookmarked ? "Remove Bookmark" : "Add Bookmark"}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                    </button>
+
+                    {/* Bookmarks List Panel Toggle */}
+                    <button
+                        onClick={() => { setShowBookmarks(!showBookmarks); setShowTOC(false); setShowFontSettings(false); setShowAnnotationsList(false); }}
+                        className={`p-1.5 md:p-2 rounded-xl transition-colors ${showBookmarks ? 'text-[var(--accent)] bg-[var(--accent-glow)]' : 'hover:bg-black hover:bg-opacity-10'}`}
+                        title="Bookmarks List"
+                    >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </button>
+
                     {/* Font Settings Button */}
                     <div className="relative">
                         <button
-                            onClick={() => setShowFontSettings(!showFontSettings)}
-                            className="p-2 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
+                            onClick={() => { setShowFontSettings(!showFontSettings); setShowTOC(false); setShowBookmarks(false); setShowAnnotationsList(false); }}
+                            className={`p-1.5 md:p-2 rounded-xl transition-all ${showFontSettings ? 'text-[var(--accent)] bg-[rgba(0,0,0,0.05)] scale-105' : 'hover:bg-[rgba(0,0,0,0.05)]'}`}
                             title="Font Settings"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -591,24 +797,29 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
                         {/* Font Settings Dropdown */}
                         {showFontSettings && (
-                            <div className={`absolute right-0 mt-2 w-72 rounded-xl shadow-xl border z-50 ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8]' :
-                                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)]' :
-                                    'bg-white border-gray-200'
+                            <div className={`absolute top-full mt-3 md:mt-4 right-0 left-auto translate-x-0 w-[min(20rem,calc(100vw-1rem))] md:max-w-72 rounded-2xl shadow-xl border z-[100] animate-fade-in-down ${theme === 'sepia'
+                                ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033] shadow-[#D4C4A8]/20'
+                                : theme === 'dark'
+                                    ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]'
+                                    : 'bg-[#FFFFFF] border-[#E5E7EB] text-[#1F2937]'
                                 }`}>
-                                <div className="p-4 space-y-4">
+                                <div className="p-5 space-y-6">
                                     {/* Font Size */}
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Font Size</label>
-                                        <div className="flex gap-2">
+                                        <label className="block text-[11px] uppercase tracking-wider font-bold mb-3 opacity-70">Font Size</label>
+                                        <div className={`flex gap-2 p-1 rounded-xl ${theme === 'sepia'
+                                            ? 'bg-[#EDD9C0]'
+                                            : theme === 'dark'
+                                                ? 'bg-[rgba(255,255,255,0.05)]'
+                                                : 'bg-[rgba(0,0,0,0.05)]'
+                                            }`}>
                                             {fontSizes.map((size) => (
                                                 <button
                                                     key={size}
                                                     onClick={() => setFontSize(size)}
-                                                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${fontSize === size
-                                                        ? theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' :
-                                                            theme === 'dark' ? 'bg-[#F43F5E] text-white' :
-                                                                'bg-gray-200 text-gray-900'
-                                                        : 'hover:bg-black hover:bg-opacity-10'
+                                                    className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all ${fontSize === size
+                                                        ? 'bg-[var(--accent)] text-white shadow-md scale-100'
+                                                        : `opacity-70 hover:opacity-100 scale-95 transition-colors ${theme === 'sepia' ? 'hover:bg-[#E4CEAF]' : theme === 'dark' ? 'hover:bg-[rgba(255,255,255,0.05)]' : 'hover:bg-[rgba(0,0,0,0.05)]'}`
                                                         }`}
                                                 >
                                                     {size === 18 ? 'M' : size}
@@ -619,42 +830,50 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
                                     {/* Font Family */}
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Font Family</label>
+                                        <label className="block text-[11px] uppercase tracking-wider font-bold mb-3 opacity-70">Font Family</label>
                                         <select
                                             value={fontFamily}
                                             onChange={(e) => setFontFamily(e.target.value)}
-                                            className={`w-full p-2 rounded-lg border ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
-                                                theme === 'dark' ? 'bg-[#0D0D12] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
-                                                    'bg-white border-gray-300'
+                                            className={`w-full p-2.5 rounded-xl border appearance-none font-medium cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-[var(--accent)] ${theme === 'sepia'
+                                                ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]'
+                                                : theme === 'dark'
+                                                    ? 'bg-[#1E1E28] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]'
+                                                    : 'bg-[#F9FAFB] border-[#E5E7EB] text-[#1F2937]'
                                                 }`}
                                         >
                                             {fontFamilies.map((font) => (
-                                                <option key={font} value={font}>{font}</option>
+                                                <option key={font} value={font} className="font-medium">{font}</option>
                                             ))}
                                         </select>
                                     </div>
 
                                     {/* Theme */}
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Theme</label>
-                                        <div className="flex gap-2">
+                                        <label className="block text-[11px] uppercase tracking-wider font-bold mb-3 opacity-70">Theme</label>
+                                        <div className="grid grid-cols-3 gap-2">
                                             <button
                                                 onClick={() => setTheme('sepia')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'sepia' ? 'bg-[#D4C4A8] text-[#5C4033]' : 'hover:bg-black hover:bg-opacity-10'
+                                                className={`min-w-0 py-2 rounded-xl font-bold text-xs md:text-sm transition-all border ${theme === 'sepia'
+                                                    ? 'bg-[#F5E6D3] border-[var(--accent)] text-[#5C4033] shadow-inner ring-1 ring-[var(--accent)]'
+                                                    : 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033] opacity-60 hover:opacity-100'
                                                     }`}
                                             >
                                                 Sepia
                                             </button>
                                             <button
                                                 onClick={() => setTheme('dark')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'dark' ? 'bg-[#F43F5E] text-white' : 'hover:bg-black hover:bg-opacity-10'
+                                                className={`min-w-0 py-2 rounded-xl font-bold text-xs md:text-sm transition-all border ${theme === 'dark'
+                                                    ? 'bg-[#13131A] border-[var(--accent)] text-[var(--accent)] shadow-inner ring-1 ring-[var(--accent)]'
+                                                    : 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6] opacity-60 hover:opacity-100'
                                                     }`}
                                             >
                                                 Dark
                                             </button>
                                             <button
                                                 onClick={() => setTheme('white')}
-                                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${theme === 'white' ? 'bg-gray-200 text-gray-900' : 'hover:bg-black hover:bg-opacity-10'
+                                                className={`min-w-0 py-2 rounded-xl font-bold text-xs md:text-sm transition-all border ${theme === 'white'
+                                                    ? 'bg-[#FFFFFF] border-[var(--accent)] text-[var(--accent)] shadow-inner ring-1 ring-[var(--accent)]'
+                                                    : 'bg-[#FFFFFF] border-[#E5E7EB] text-[#1F2937] opacity-60 hover:opacity-100'
                                                     }`}
                                             >
                                                 White
@@ -668,18 +887,20 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
                     {/* Annotations List Toggle */}
                     <button
-                        onClick={() => setShowAnnotationsList(!showAnnotationsList)}
-                        className={`p-2 rounded-lg transition-colors ${showAnnotationsList ? 'bg-black bg-opacity-10' : 'hover:bg-black hover:bg-opacity-10'
-                            }`}
+                        onClick={() => { setShowAnnotationsList(!showAnnotationsList); setShowTOC(false); setShowFontSettings(false); setShowBookmarks(false); }}
+                        className={`p-1.5 md:p-2 rounded-xl transition-colors ${showAnnotationsList ? 'text-[var(--accent)] bg-[var(--accent-glow)]' : 'hover:bg-black hover:bg-opacity-10'}`}
                         title="Highlights & Marks"
                     >
-                        <span className="text-xs font-bold uppercase tracking-tighter">MARK</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-tighter">MARK</span>
                     </button>
                 </div>
             </header>
 
             {/* Reader Area */}
             <div className="flex-1 relative overflow-hidden">
+                {/* Right Edge Bookmark Indicator */}
+                <div className={`absolute right-0 top-20 w-1.5 h-12 rounded-l-full z-30 transition-all duration-300 pointer-events-none ${isBookmarked ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-3'}`} style={{ backgroundColor: 'var(--accent)' }} />
+
                 {/* Pull to Refresh Indicator */}
                 {isMobile && pullDistance > 0 && (
                     <div
@@ -702,38 +923,62 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     </div>
                 )}
 
-                {/* Table of Contents Sidebar */}
-                {showTOC && (
-                    <div className={`absolute left-0 top-0 bottom-0 w-80 shadow-xl border-r z-40 overflow-y-auto ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033]' :
-                        theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
-                            'bg-white border-gray-200 text-gray-800'
-                        }`}>
-                        <div className="p-4">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="font-semibold text-lg">Table of Contents</h2>
-                                <button
-                                    onClick={() => setShowTOC(false)}
-                                    className="p-1 rounded hover:bg-black hover:bg-opacity-10"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="space-y-2">
-                                {toc.map((item, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleTOCItemClick(item.href)}
-                                        className="w-full text-left p-3 rounded-lg hover:bg-black hover:bg-opacity-10 transition-colors"
-                                    >
-                                        {item.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                {/* Chapter Navigation Panel (Slide-in) */}
+                <div className={`absolute left-0 top-0 bottom-0 w-[88vw] max-w-80 shadow-2xl border-r z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${showTOC ? 'translate-x-0' : '-translate-x-full'} ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033]' : theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[var(--border)] text-[var(--text-primary)] backdrop-blur-md' : 'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#1F2937] backdrop-blur-md'}`}>
+                    <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: theme === 'white' ? '#E5E7EB' : 'var(--border)' }}>
+                        <h2 className="font-bold text-lg font-display">Chapters</h2>
+                        <button onClick={() => setShowTOC(false)} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
-                )}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        {toc.map((item, index) => {
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => handleTOCItemClick(item.href)}
+                                    className="w-full text-left p-3 rounded-xl transition-all font-medium text-sm hover:bg-black hover:bg-opacity-5"
+                                >
+                                    {item.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Bookmarks List Sidebar (Slide-in) */}
+                <div className={`absolute left-0 top-0 bottom-0 w-[88vw] max-w-80 shadow-2xl border-r z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${showBookmarks ? 'translate-x-0' : '-translate-x-full'} ${theme === 'sepia' ? 'bg-[#F5E6D3] border-[#D4C4A8] text-[#5C4033]' : theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[rgba(255,255,255,0.08)] text-[#F0EEF6] backdrop-blur-md' : 'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#1F2937] backdrop-blur-md'}`}>
+                    <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: theme === 'white' ? '#E5E7EB' : 'var(--border)' }}>
+                        <h2 className="font-bold text-lg font-display">Bookmarks</h2>
+                        <button onClick={() => setShowBookmarks(false)} className="p-1 rounded-full hover:bg-black hover:bg-opacity-10 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {bookmarks.length === 0 ? (
+                            <p className={`text-sm text-center py-8 ${theme === 'dark' ? 'text-[#D3CFE0] opacity-80' : 'opacity-60'}`}>No bookmarks yet.</p>
+                        ) : (
+                            [...bookmarks].sort((a, b) => a.progress - b.progress).map((b, i) => (
+                                <div key={i} className={`p-3 rounded-xl border group relative transition-all cursor-pointer hover:shadow-md ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8]' : theme === 'dark' ? 'bg-[#1A1A24] border-[rgba(255,255,255,0.12)] text-[#F0EEF6]' : 'bg-gray-50 border-gray-200 text-[#1F2937]'}`} onClick={() => { void navigateToLocation(b.cfi, isMobile ? () => setShowBookmarks(false) : undefined); }}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="font-bold text-sm" style={{ color: 'var(--accent)' }}>{b.title}</p>
+                                            <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-[#D3CFE0]' : 'opacity-70'}`}>{b.progress}% completed</p>
+                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); setBookmarks(bookmarks.filter(x => x.cfi !== b.cfi)); localStorage.setItem(`bookmarks-${bookId}`, JSON.stringify(bookmarks.filter(x => x.cfi !== b.cfi))); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                    <p className={`text-[10px] mt-2 ${theme === 'dark' ? 'text-[#B8B3C8]' : 'opacity-40'}`}>{new Date(b.timestamp).toLocaleDateString()}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
 
                 <div
                     ref={viewerRef}
@@ -741,36 +986,50 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    className="h-full w-full"
+                    className={`h-full w-full ${theme === 'sepia' ? 'bg-[#F5E6D3]' : theme === 'dark' ? 'bg-[#0D0D12]' : 'bg-white'}`}
                     style={{
-                        userSelect: 'none',
+                        userSelect: 'auto',
+                        WebkitUserSelect: 'auto',
                         scrollBehavior: 'smooth'
                     }}
                 />
 
                 {/* Navigation Buttons Removed as per request */}
+
+                {showLastReadButton && (
+                    <button
+                        onClick={() => { if (lastReadLocation) void navigateToLocation(lastReadLocation); }}
+                        className={`fixed right-3 md:right-5 z-[75] flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-full shadow-lg transition-all hover:scale-105 ${theme === 'sepia'
+                            ? 'bg-[#EDD9C0] border border-[#D4C4A8] text-[#5C4033]'
+                            : theme === 'dark'
+                                ? 'bg-[#1A1A24] border border-[rgba(255,255,255,0.12)] text-[#F0EEF6]'
+                                : 'bg-white border border-[#E5E7EB] text-[#1F2937]'
+                            }`}
+                        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.75rem)' }}
+                        title="Go to Last Read"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m0 0l-6-6m6 6l6-6" />
+                        </svg>
+                        <span className="text-[10px] md:text-xs font-semibold">Last Read {lastReadProgress}%</span>
+                    </button>
+                )}
             </div>
 
-            {/* Footer */}
-            <footer className={`flex items-center justify-between px-6 py-3 border-t ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' :
-                theme === 'dark' ? 'bg-[#13131A] border-[rgba(255,255,255,0.07)] text-[#F0EEF6]' :
-                    'bg-gray-50 border-gray-200 text-gray-800'
-                }`}>
-                <div className="flex items-center gap-2">
-                    <Image src="/logo.svg" alt="Logo" width={24} height={24} className={`h-6 w-6 ${theme === 'dark' ? '' : 'invert'}`} />
-                    <span className="font-semibold text-lg">Ebookin</span>
+            {/* Reading Stats Bar (Bottom 32px minimal) */}
+            <footer className={`fixed bottom-0 left-0 right-0 h-8 md:h-8 z-[60] flex items-center justify-between px-3 md:px-6 text-[11px] md:text-xs font-medium transition-all duration-500 ease-in-out ${showToolbar ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'} ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' : theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[var(--border)] text-[var(--text-secondary)] backdrop-blur-md' : 'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#374151] backdrop-blur-md'} border-t`}
+                style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}>
+                <div className="flex items-center gap-2 md:gap-4">
+                    <span className={`${theme === 'sepia' ? 'text-[#5C4033]' : theme === 'white' ? 'text-[#1F2937]' : 'text-[#F0EEF6]'}`}>{progress}%</span>
+                    <span>{pagesRemaining} mins left</span>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm">
-                    {scrollMode ? (
-                        <span>{progress}% selesai dibaca</span>
-                    ) : (
-                        <>
-                            <span>{progress}% completed</span>
-                            <span>Hal {currentPage} dari {totalPages}</span>
-                        </>
-                    )}
+                <div className="tracking-wide text-[10px] md:text-xs">
+                    {scrollMode ? 'Continuous' : `Page ${currentPage} of ${totalPages}`}
                 </div>
+
+                {/* Micro progress bar over the top border */}
+                <div className="absolute top-0 left-0 h-[1.5px] transition-all duration-300 ease-out z-[61]" style={{ width: `${progress}%`, backgroundColor: 'var(--accent)', boxShadow: '0 0 4px var(--accent-glow)' }} />
             </footer>
 
             {/* Selection Popup */}
@@ -804,11 +1063,11 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             {/* Annotations List Sidebar */}
             {showAnnotationsList && (
-                <div className={`fixed inset-y-0 right-0 w-80 shadow-2xl z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${theme === 'sepia' ? 'bg-[#F5E6D3] border-l border-[#D4C4A8]' :
+                <div className={`fixed inset-y-0 right-0 w-[88vw] max-w-80 shadow-2xl z-[70] flex flex-col transform transition-transform duration-300 ease-in-out ${theme === 'sepia' ? 'bg-[#F5E6D3] border-l border-[#D4C4A8] text-[#5C4033]' :
                     theme === 'dark' ? 'bg-[#13131A] border-l border-[rgba(255,255,255,0.07)]' :
-                        'bg-white border-l border-gray-200'
+                        'bg-white border-l border-[#E5E7EB] text-[#1F2937]'
                     }`}>
-                    <div className="p-4 border-b flex items-center justify-between">
+                    <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: theme === 'white' ? '#E5E7EB' : undefined }}>
                         <h2 className="font-bold text-lg">Highlights & Marks</h2>
                         <button
                             onClick={() => setShowAnnotationsList(false)}
@@ -831,8 +1090,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                                             'bg-gray-50 border-gray-200'
                                         }`}
                                     onClick={() => {
-                                        rendition?.display(ann.cfiRange);
-                                        if (isMobile) setShowAnnotationsList(false);
+                                        void navigateToLocation(ann.cfiRange, isMobile ? () => setShowAnnotationsList(false) : undefined);
                                     }}
                                 >
                                     <div className="flex items-start justify-between mb-2">

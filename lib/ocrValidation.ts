@@ -1,6 +1,8 @@
+import { GoogleGenAI, Type } from '@google/genai';
+
 /**
- * OCR Validation Service using Google Cloud Vision API
- * Validates QRIS payment proof images for auto-approval
+ * OCR Validation Service using Google Gemini 1.5 Flash
+ * Validates payment proof images for auto-approval
  */
 
 // Merchant info for validation
@@ -8,10 +10,10 @@ const MERCHANT_KEYWORDS = ['BLANCSTUDIA', 'DIGITAL & KREATIF', 'DIGITAL', 'KREAT
 const SUCCESS_KEYWORDS = ['BERHASIL', 'SUKSES', 'SUCCESS', 'SUCCESSFUL', 'PEMBAYARAN BERHASIL', 'TRANSAKSI BERHASIL', 'TRANSACTION ID', 'REF', 'REFERENSI', 'TRX'];
 
 // Plan amount mapping
-const PLAN_AMOUNTS: Record<string, { amount: number; patterns: string[] }> = {
-    '1month': { amount: 25000, patterns: ['25.000', '25,000', '25000', 'Rp25.000', 'Rp 25.000'] },
-    '3months': { amount: 70000, patterns: ['70.000', '70,000', '70000', 'Rp70.000', 'Rp 70.000'] },
-    '1year': { amount: 240000, patterns: ['240.000', '240,000', '240000', 'Rp240.000', 'Rp 240.000'] },
+const PLAN_AMOUNTS: Record<string, { amount: number }> = {
+    '1month': { amount: 25000 },
+    '3months': { amount: 70000 },
+    '1year': { amount: 240000 },
 };
 
 export interface OcrValidationResult {
@@ -31,100 +33,40 @@ export interface OcrValidationResult {
 }
 
 /**
- * Call Google Cloud Vision API to extract text from an image URL
+ * Download image and convert to base64
  */
-async function extractTextFromImage(imageUrl: string): Promise<string> {
-    const apiKey = process.env.GOOGLE_CLOUD_VISION_API_KEY;
-
-    if (!apiKey) {
-        throw new Error('GOOGLE_CLOUD_VISION_API_KEY is not configured');
+async function fetchImageBase64(imageUrl: string): Promise<{ mimeType: string; data: string }> {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status}`);
     }
-
-    // Download image and convert to base64
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-        throw new Error(`Failed to download image: ${imageResponse.status}`);
-    }
-
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-
-    // Call Google Cloud Vision API
-    const visionResponse = await fetch(
-        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                requests: [
-                    {
-                        image: { content: base64Image },
-                        features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-                    },
-                ],
-            }),
-        }
-    );
-
-    if (!visionResponse.ok) {
-        const errBody = await visionResponse.text();
-        console.error('[OCR] Vision API error:', errBody);
-        throw new Error(`Vision API error: ${visionResponse.status}`);
-    }
-
-    const data = await visionResponse.json();
-    const textAnnotations = data.responses?.[0]?.textAnnotations;
-
-    if (!textAnnotations || textAnnotations.length === 0) {
-        return '';
-    }
-
-    // First annotation is the full text
-    return textAnnotations[0].description || '';
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    return { mimeType: contentType, data: base64 };
 }
 
 /**
- * Check if today's date is present in the text
+ * Helper to check if a YYYY-MM-DD string is today
  */
-function checkDateInText(text: string): { valid: boolean; found: string | null } {
+function isDateToday(dateString: string): boolean {
+    if (!dateString) return false;
     const now = new Date();
+    // Use Indonesian time (WIB UTC+7) for safety if server is UTC
+    // A simple hack is to get the current date string in local timezone
+    const parts = dateString.split("-");
+    if (parts.length !== 3) return false;
 
-    // Indonesian month names
-    const monthNamesId = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-
-    const day = now.getDate();
-    const month = now.getMonth(); // 0-indexed
-    const year = now.getFullYear();
-
-    // Various date formats to check
-    const datePatterns = [
-        `${day}/${month + 1}/${year}`,           // 26/2/2026
-        `${day.toString().padStart(2, '0')}/${(month + 1).toString().padStart(2, '0')}/${year}`, // 26/02/2026
-        `${day}-${month + 1}-${year}`,           // 26-2-2026
-        `${day.toString().padStart(2, '0')}-${(month + 1).toString().padStart(2, '0')}-${year}`, // 26-02-2026
-        `${day} ${monthNamesId[month]} ${year}`, // 26 Februari 2026
-        `${day} ${monthNamesEn[month]} ${year}`, // 26 February 2026
-        `${day} ${monthShort[month]} ${year}`,   // 26 Feb 2026
-        `${day} ${monthNamesId[month]}`,         // 26 Februari (without year)
-        `${day} ${monthNamesEn[month]}`,         // 26 February (without year)
-        `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`, // 2026-02-26
-    ];
-
-    const upperText = text.toUpperCase();
-
-    for (const pattern of datePatterns) {
-        if (upperText.includes(pattern.toUpperCase())) {
-            return { valid: true, found: pattern };
-        }
-    }
-
-    return { valid: false, found: null };
+    // We can just rely on the server's local time (or if we need strict WIB we can adjust)
+    // Here we'll just check if it matches today's date in local server time
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
 }
 
 /**
- * Main validation function
+ * Main validation function using Gemini
  */
 export async function validatePaymentProof(
     imageUrl: string,
@@ -144,16 +86,65 @@ export async function validatePaymentProof(
         };
     }
 
-    let extractedText = '';
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        throw new Error('GEMINI_API_KEY is not configured');
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    let extractedData;
+    let rawJsonResponse = '';
 
     try {
-        extractedText = await extractTextFromImage(imageUrl);
+        const image = await fetchImageBase64(imageUrl);
+
+        const prompt = `Anda adalah asisten AI untuk memvalidasi bukti transfer pembayaran.
+Tolong ekstrak informasi berikut dari gambar bukti transfer ini dan kembalikan dalam format JSON.
+Properti yang dibutuhkan dalam JSON:
+- "nominal": Angka jumlah transfer/pembayaran (integer, contoh: 25000, tulis angka bulat saja tanpa Rp/titik)
+- "merchantName": Nama tujuan transfer atau merchant (string)
+- "status": Status transaksi, misalnya "Berhasil", "Sukses", "Pending" (string)
+- "tanggal": Tanggal transaksi dalam format "YYYY-MM-DD" (string)
+- "rawText": Teks mentah paling relevan yang terlihat di struk untuk keperluan debug (string)`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                prompt,
+                {
+                    inlineData: {
+                        mimeType: image.mimeType,
+                        data: image.data
+                    }
+                }
+            ],
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        nominal: { type: Type.INTEGER },
+                        merchantName: { type: Type.STRING },
+                        status: { type: Type.STRING },
+                        tanggal: { type: Type.STRING },
+                        rawText: { type: Type.STRING }
+                    },
+                    required: ["nominal", "merchantName", "status", "tanggal", "rawText"]
+                }
+            }
+        });
+
+        const textResponse = response.text;
+        rawJsonResponse = textResponse || '{}';
+        extractedData = JSON.parse(rawJsonResponse);
+
     } catch (error: any) {
-        console.error('[OCR] Text extraction failed:', error.message);
+        console.error('[OCR] Gemini processing failed:', error.message);
         return {
             autoApprove: false,
             extractedText: '',
-            reason: 'Gambar tidak terbaca dengan jelas, menunggu verifikasi admin.',
+            reason: 'Gambar tidak terbaca dengan jelas oleh AI, menunggu verifikasi admin.',
             validationDetail: {
                 nominalValid: false, merchantValid: false, statusValid: false, dateValid: false,
                 nominalFound: null, merchantFound: null, statusFound: null, dateFound: null,
@@ -161,11 +152,11 @@ export async function validatePaymentProof(
         };
     }
 
-    if (!extractedText || extractedText.trim().length < 10) {
+    if (!extractedData) {
         return {
             autoApprove: false,
-            extractedText,
-            reason: 'Teks pada gambar terlalu sedikit atau tidak terbaca.',
+            extractedText: rawJsonResponse,
+            reason: 'Gagal mengekstrak struktur data dari gambar.',
             validationDetail: {
                 nominalValid: false, merchantValid: false, statusValid: false, dateValid: false,
                 nominalFound: null, merchantFound: null, statusFound: null, dateFound: null,
@@ -173,35 +164,33 @@ export async function validatePaymentProof(
         };
     }
 
-    const upperText = extractedText.toUpperCase();
+    const { nominal, merchantName, status, tanggal, rawText } = extractedData;
+    const extractedText = rawJsonResponse; // Simpan JSON string sbg extractedText fallback DB
 
     // 1. Check nominal
-    let nominalValid = false;
-    let nominalFound: string | null = null;
-    for (const pattern of planConfig.patterns) {
-        if (extractedText.includes(pattern)) {
-            nominalValid = true;
-            nominalFound = pattern;
-            break;
-        }
-    }
+    const nominalFound = typeof nominal === 'number' ? String(nominal) : String(nominal || '');
+    const nominalValid = (nominal === planConfig.amount);
 
     // 2. Check merchant
     let merchantValid = false;
-    let merchantFound: string | null = null;
+    let merchantFound: string | null = merchantName || null;
+    const upperMerchant = (merchantName || '').toUpperCase();
+    const upperRawText = (rawText || '').toUpperCase();
+
     for (const keyword of MERCHANT_KEYWORDS) {
-        if (upperText.includes(keyword.toUpperCase())) {
+        if (upperMerchant.includes(keyword.toUpperCase()) || upperRawText.includes(keyword.toUpperCase())) {
             merchantValid = true;
-            merchantFound = keyword;
+            merchantFound = keyword; // Simpan keyword yg me-match
             break;
         }
     }
 
-    // 3. Check success status
+    // 3. Check status
     let statusValid = false;
-    let statusFound: string | null = null;
+    let statusFound: string | null = status || null;
+    const upperStatus = (status || '').toUpperCase();
     for (const keyword of SUCCESS_KEYWORDS) {
-        if (upperText.includes(keyword.toUpperCase())) {
+        if (upperStatus.includes(keyword.toUpperCase()) || upperRawText.includes(keyword.toUpperCase())) {
             statusValid = true;
             statusFound = keyword;
             break;
@@ -209,9 +198,8 @@ export async function validatePaymentProof(
     }
 
     // 4. Check date
-    const dateCheck = checkDateInText(extractedText);
-    const dateValid = dateCheck.valid;
-    const dateFound = dateCheck.found;
+    const dateValid = isDateToday(tanggal);
+    const dateFound = tanggal || null;
 
     const validationDetail = {
         nominalValid, merchantValid, statusValid, dateValid,
@@ -223,13 +211,13 @@ export async function validatePaymentProof(
 
     // Build reason
     const failReasons: string[] = [];
-    if (!nominalValid) failReasons.push('Nominal tidak sesuai');
-    if (!merchantValid) failReasons.push('Merchant tidak ditemukan');
-    if (!statusValid) failReasons.push('Status pembayaran tidak ditemukan');
-    if (!dateValid) failReasons.push('Tanggal tidak sesuai hari ini');
+    if (!nominalValid) failReasons.push(`Nominal tidak sesuai (harus ${planConfig.amount}, didapat ${nominal})`);
+    if (!merchantValid) failReasons.push('Merchant tidak sesuai atau tidak ditemukan');
+    if (!statusValid) failReasons.push('Status bukan berhasil');
+    if (!dateValid) failReasons.push(`Tanggal tidak sesuai hari ini (didapat ${tanggal})`);
 
     const reason = autoApprove
-        ? 'Semua validasi terpenuhi, pembayaran terverifikasi otomatis.'
+        ? 'Semua validasi terpenuhi melalui AI, pembayaran terverifikasi otomatis.'
         : `Verifikasi gagal: ${failReasons.join(', ')}. Menunggu review admin.`;
 
     return {

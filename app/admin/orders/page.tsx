@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 
@@ -151,8 +151,8 @@ export default function AdminOrdersPage() {
                             </tr>
                         ) : (
                             orders.map((order) => (
-                                <>
-                                    <tr key={order.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
+                                <React.Fragment key={order.id}>
+                                    <tr className="hover:bg-[var(--bg-elevated)] transition-colors">
                                         <td className="px-6 py-4" style={{ color: 'var(--text-secondary)' }}>
                                             {new Date(order.createdAt).toLocaleDateString('id-ID', {
                                                 day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -250,7 +250,7 @@ export default function AdminOrdersPage() {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </React.Fragment>
                             ))
                         )}
                     </tbody>

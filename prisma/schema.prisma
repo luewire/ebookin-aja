@@ -23,13 +23,13 @@ model User {
   annotations     Annotation[]
   following       Follow[]          @relation("following")
   followers       Follow[]          @relation("followers")
+  manualOrders    ManualOrder[]
   notifications   Notification[]
   readingLogs     ReadingLog[]
   readingProgress ReadingProgress[]
   readlist        Readlist[]
   reviews         Review[]
   subscription    Subscription?
-  manualOrders    ManualOrder[]
 
   @@index([firebaseUid])
   @@index([email])
@@ -67,7 +67,6 @@ model Subscription {
   @@index([userId])
   @@index([status])
   @@index([endDate])
-  @@index([userId, endDate])
 }
 
 model Transaction {
@@ -116,47 +115,43 @@ model Ebook {
   isPremium       Boolean           @default(true)
   isActive        Boolean           @default(true)
   priority        Int               @default(0)
-  
-  // Trending System Metrics Cache
-  totalViews      Int               @default(0)
-  totalReads      Int               @default(0)
-  averageRating   Float             @default(0)
-  totalRatings    Int               @default(0)
-  positiveRatings Int               @default(0)
-  negativeRatings Int               @default(0)
-  trendingScore   Float             @default(0)
-  
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   categoryId      Int
+  averageRating   Float             @default(0)
+  negativeRatings Int               @default(0)
+  positiveRatings Int               @default(0)
+  totalRatings    Int               @default(0)
+  totalReads      Int               @default(0)
+  totalViews      Int               @default(0)
+  trendingScore   Float             @default(0)
   annotations     Annotation[]
+  activities      BookActivity[]
   category        Category          @relation(fields: [categoryId], references: [id])
   readingLogs     ReadingLog[]
   readingProgress ReadingProgress[]
   readlist        Readlist[]
   reviews         Review[]
-  activities      BookActivity[]
 
   @@index([isActive])
   @@index([isPremium])
   @@index([categoryId])
   @@index([priority])
   @@index([trendingScore(sort: Desc)])
-  @@index([createdAt])
 }
 
 model Banner {
-  id        String   @id @default(cuid())
-  title     String
-  subtitle  String?
-  ctaLabel  String?
-  ctaLink   String?
-  imageUrl       String?
-  imagePosition  Int      @default(50) // Vertical position 0-100% for object-position
-  isActive       Boolean  @default(true)
-  priority  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  subtitle      String?
+  ctaLabel      String?
+  ctaLink       String?
+  imageUrl      String?
+  isActive      Boolean  @default(true)
+  priority      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  imagePosition Int      @default(50)
 
   @@index([isActive])
   @@index([priority])
@@ -272,24 +267,38 @@ model Notification {
 }
 
 model ManualOrder {
-  id                  String             @id @default(cuid())
+  id                  String            @id @default(cuid())
   userId              String
   package             String
   amount              Int
   proofOfPayment      String?
-  status              ManualOrderStatus  @default(PENDING)
-  ocrExtractedText    String?            // Raw text extracted by OCR
-  ocrValidationResult Json?              // Detailed validation breakdown
-  ocrRejectionReason  String?            // Why auto-approve failed
-  imageHash           String?            // SHA256 hash for duplicate detection
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status              ManualOrderStatus @default(PENDING)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  imageHash           String?
+  ocrExtractedText    String?
+  ocrRejectionReason  String?
+  ocrValidationResult Json?
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@index([imageHash])
+}
+
+model BookActivity {
+  id        String       @id @default(cuid())
+  bookId    String
+  userId    String?
+  type      ActivityType
+  createdAt DateTime     @default(now())
+  book      Ebook        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -329,9 +338,9 @@ enum NotificationType {
 
 enum ManualOrderStatus {
   PENDING
-  AUTO_APPROVED
   APPROVED
   REJECTED
+  AUTO_APPROVED
 }
 
 enum ActivityType {
@@ -340,20 +349,4 @@ enum ActivityType {
   POSITIVE_RATING
   NEUTRAL_RATING
   NEGATIVE_RATING
-}
-
-model BookActivity {
-  id        String       @id @default(cuid())
-  bookId    String
-  userId    String?      // Nullable for guest views
-  type      ActivityType
-  createdAt DateTime     @default(now())
-  book      Ebook        @relation(fields: [bookId], references: [id], onDelete: Cascade)
-
-  @@index([bookId])
-  @@index([userId])
-  @@index([type])
-  @@index([createdAt])
-  @@index([userId, createdAt])
-  @@index([bookId, type])
 }

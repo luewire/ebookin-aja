@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
+import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface User {
   id: string;
@@ -175,7 +176,7 @@ export default function UserManagementPage() {
 
     } catch (error) {
       console.error('Error updating user:', error);
-      alert('Failed to update user');
+      showModernToast('Failed to update user', 'error');
     } finally {
       setIsLoadingAction(false);
     }
@@ -183,7 +184,14 @@ export default function UserManagementPage() {
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    const confirmed = await showModernConfirm({
+      title: 'Delete user permanently?',
+      message: 'This action cannot be undone. All user-linked data may be removed.',
+      confirmText: 'Delete User',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     setIsLoadingAction(true);
     try {
@@ -202,9 +210,10 @@ export default function UserManagementPage() {
       // Remove from list
       setUsers(users.filter(u => u.id !== selectedUser.id));
       setIsManageModalOpen(false);
+      showModernToast('User deleted successfully', 'success');
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+      showModernToast('Failed to delete user', 'error');
     } finally {
       setIsLoadingAction(false);
     }

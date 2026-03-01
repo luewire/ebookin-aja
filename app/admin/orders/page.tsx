@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
+import { showModernToast } from '@/lib/modern-feedback';
 
 interface Order {
     id: string;
@@ -82,8 +83,9 @@ export default function AdminOrdersPage() {
 
             // Update local state without full refetch
             setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o));
+            showModernToast(`Order ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully`, 'success');
         } catch (err: any) {
-            alert(err.message);
+            showModernToast(err.message || 'Failed to update order status', 'error');
         }
     };
 

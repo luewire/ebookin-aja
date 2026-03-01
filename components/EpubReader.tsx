@@ -281,6 +281,20 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
         }
     }, [showFontSettings, showTOC, showBookmarks, showAnnotationsList]);
 
+    const toggleToolbarMobile = useCallback(() => {
+        if (anyPanelOpen) {
+            setShowToolbar(true);
+            return;
+        }
+
+        if (showToolbar) {
+            if (toolbarTimerRef.current) clearTimeout(toolbarTimerRef.current);
+            setShowToolbar(false);
+        } else {
+            resetToolbarTimer();
+        }
+    }, [anyPanelOpen, showToolbar, resetToolbarTimer]);
+
     const applyReaderStyles = useCallback((targetRendition: Rendition) => {
         const colors = EPUB_THEME_COLORS[theme];
 
@@ -721,6 +735,26 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
 
             {/* Bottom Progress Bar removed here - will add to Footer */}
 
+            {/* Mobile toolbar toggle button (always reachable) */}
+            {!showToolbar && (
+                <button
+                    onClick={toggleToolbarMobile}
+                    className={`md:hidden fixed right-3 z-[90] p-2.5 rounded-full shadow-lg border backdrop-blur-sm transition-all duration-300 opacity-60 scale-95 hover:opacity-100 active:opacity-100 active:scale-100 ${theme === 'sepia'
+                        ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]'
+                        : theme === 'dark'
+                            ? 'bg-[#1A1A24] border-[rgba(255,255,255,0.12)] text-[#F0EEF6]'
+                            : 'bg-white border-[#E5E7EB] text-[#1F2937]'
+                        }`}
+                    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.6rem)' }}
+                    title="Show toolbar"
+                    aria-label="Show toolbar"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                </button>
+            )}
+
             {/* Desktop hover zone for toolbar — active only when toolbar is hidden */}
             <div
                 className="fixed top-0 left-0 right-0 h-20 z-[55] hidden md:block"
@@ -1017,7 +1051,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             </div>
 
             {/* Reading Stats Bar (Bottom 32px minimal) */}
-            <footer className={`fixed bottom-0 left-0 right-0 h-8 md:h-8 z-[60] flex items-center justify-between px-3 md:px-6 text-[11px] md:text-xs font-medium transition-all duration-500 ease-in-out ${showToolbar ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'} ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' : theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[var(--border)] text-[var(--text-secondary)] backdrop-blur-md' : 'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#374151] backdrop-blur-md'} border-t`}
+            <footer className={`fixed bottom-0 left-0 right-0 h-8 md:h-8 z-[60] flex items-center justify-between px-3 md:px-6 text-[11px] md:text-xs font-medium transition-all duration-500 ease-in-out translate-y-0 opacity-100 ${theme === 'sepia' ? 'bg-[#EDD9C0] border-[#D4C4A8] text-[#5C4033]' : theme === 'dark' ? 'bg-[rgba(19,19,26,0.95)] border-[var(--border)] text-[var(--text-secondary)] backdrop-blur-md' : 'bg-[rgba(255,255,255,0.98)] border-[#E5E7EB] text-[#374151] backdrop-blur-md'} border-t`}
                 style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}>
                 <div className="flex items-center gap-2 md:gap-4">
                     <span className={`${theme === 'sepia' ? 'text-[#5C4033]' : theme === 'white' ? 'text-[#1F2937]' : 'text-[#F0EEF6]'}`}>{progress}%</span>

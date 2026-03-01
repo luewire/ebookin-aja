@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
+import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface Banner {
   id: string;
@@ -169,7 +170,14 @@ export default function ManageBannersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this banner?')) return;
+    const confirmed = await showModernConfirm({
+      title: 'Delete banner?',
+      message: 'This banner will be deleted permanently.',
+      confirmText: 'Delete Banner',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       const token = await getAuthToken();
@@ -178,8 +186,9 @@ export default function ManageBannersPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       fetchBanners();
+      showModernToast('Banner deleted', 'success');
     } catch (error) {
-      alert('Failed to delete banner');
+      showModernToast('Failed to delete banner', 'error');
     }
   };
 

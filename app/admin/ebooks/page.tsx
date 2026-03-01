@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
+import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface Ebook {
   id: string;
@@ -146,7 +147,14 @@ export default function ManageEbooksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this ebook?')) return;
+    const confirmed = await showModernConfirm({
+      title: 'Delete ebook?',
+      message: 'This ebook will be permanently removed from the catalog.',
+      confirmText: 'Delete Ebook',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       const token = await getAuthToken();
@@ -164,9 +172,10 @@ export default function ManageEbooksPage() {
       }
 
       fetchEbooks();
+      showModernToast('Ebook deleted', 'success');
     } catch (error: any) {
       console.error('Error deleting ebook:', error);
-      alert('Failed to delete ebook');
+      showModernToast('Failed to delete ebook', 'error');
     }
   };
 
@@ -176,14 +185,14 @@ export default function ManageEbooksPage() {
     // Validate file type
     const allowedTypes = ['image/webp', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file type. Only WebP, JPEG, JPG, and PNG are allowed.');
+      showModernToast('Invalid file type. Only WebP, JPEG, JPG, and PNG are allowed.', 'error');
       return;
     }
 
     // Validate file size (max 2MB)
     const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('File size exceeds 2MB limit');
+      showModernToast('File size exceeds 2MB limit', 'error');
       return;
     }
 
@@ -212,9 +221,10 @@ export default function ManageEbooksPage() {
       console.log('Cover uploaded successfully:', data);
       setCoverPreview(data.url);
       setCoverUrl(data.url); // Update state for form submission
+      showModernToast('Cover image uploaded', 'success');
     } catch (error: any) {
       console.error('Error uploading cover:', error);
-      alert('Failed to upload cover image');
+      showModernToast('Failed to upload cover image', 'error');
     } finally {
       setUploadingCover(false);
     }
@@ -225,14 +235,14 @@ export default function ManageEbooksPage() {
 
     // Validate file type
     if (!file.name.endsWith('.epub')) {
-      alert('Invalid file type. Only EPUB files are allowed.');
+      showModernToast('Invalid file type. Only EPUB files are allowed.', 'error');
       return;
     }
 
     // Validate file size (max 50MB)
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert('File size exceeds 50MB limit');
+      showModernToast('File size exceeds 50MB limit', 'error');
       return;
     }
 
@@ -265,6 +275,7 @@ export default function ManageEbooksPage() {
       // Save URL and publicId to state
       setEpubUrl(data.url);
       setUploadedEpubPublicId(data.publicId);
+      showModernToast('EPUB uploaded successfully', 'success');
 
       // Update hidden input manually as fallback
       const contentInput = document.querySelector('input[name="content"]') as HTMLInputElement;
@@ -273,7 +284,7 @@ export default function ManageEbooksPage() {
       }
     } catch (error: any) {
       console.error('Error uploading EPUB:', error);
-      alert('Failed to upload EPUB file');
+      showModernToast('Failed to upload EPUB file', 'error');
       setEpubFileName('');
     } finally {
       setUploadingEpub(false);

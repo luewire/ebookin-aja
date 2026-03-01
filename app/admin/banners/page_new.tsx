@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
+import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface Banner {
   id: string;
@@ -173,12 +174,19 @@ export default function ManageBannersPage() {
       fetchBanners();
     } catch (error: any) {
       console.error('Error toggling banner status:', error);
-      alert('Error: ' + error.message);
+      showModernToast('Error: ' + error.message, 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
+    const confirmed = await showModernConfirm({
+      title: 'Delete banner?',
+      message: 'This banner will be permanently deleted.',
+      confirmText: 'Delete Banner',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       const token = await getAuthToken();
@@ -196,9 +204,10 @@ export default function ManageBannersPage() {
       }
 
       fetchBanners();
+      showModernToast('Banner deleted', 'success');
     } catch (error: any) {
       console.error('Error deleting banner:', error);
-      alert('Error: ' + error.message);
+      showModernToast('Error: ' + error.message, 'error');
     }
   };
 
@@ -332,7 +341,7 @@ export default function ManageBannersPage() {
       fetchBanners();
     } catch (error: any) {
       console.error('Error saving banner:', error);
-      alert('Error saving banner: ' + error.message);
+      showModernToast('Error saving banner: ' + error.message, 'error');
     }
   };
 

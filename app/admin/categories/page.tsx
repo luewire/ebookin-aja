@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
+import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface Category {
   id: string;
@@ -80,7 +81,7 @@ export default function ManageCategoriesPage() {
       setCategories(data.categories || []);
     } catch (error: any) {
       console.error('Error fetching categories:', error);
-      alert('Failed to fetch categories');
+      showModernToast('Failed to fetch categories', 'error');
       setCategories([]);
     } finally {
       setLoading(false);
@@ -91,7 +92,7 @@ export default function ManageCategoriesPage() {
     e.preventDefault();
 
     if (!categoryName.trim()) {
-      alert('Category name is required');
+      showModernToast('Category name is required', 'error');
       return;
     }
 
@@ -124,9 +125,10 @@ export default function ManageCategoriesPage() {
       setEditingCategory(null);
       setCategoryName('');
       fetchCategories();
+      showModernToast(editingCategory ? 'Category updated' : 'Category created', 'success');
     } catch (error: any) {
       console.error('Error saving category:', error);
-      alert(error.message || 'Failed to save category');
+      showModernToast(error.message || 'Failed to save category', 'error');
     } finally {
       setSaving(false);
     }
@@ -134,11 +136,18 @@ export default function ManageCategoriesPage() {
 
   const handleDelete = async (id: string, ebookCount: number) => {
     if (ebookCount > 0) {
-      alert(`Cannot delete category with ${ebookCount} associated ebook(s). Please reassign or delete the ebooks first.`);
+      showModernToast(`Cannot delete category with ${ebookCount} associated ebook(s). Please reassign or delete the ebooks first.`, 'error');
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this category?')) return;
+    const confirmed = await showModernConfirm({
+      title: 'Delete category?',
+      message: 'This category will be permanently removed.',
+      confirmText: 'Delete Category',
+      cancelText: 'Cancel',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     try {
       const token = await getAuthToken();
@@ -157,9 +166,10 @@ export default function ManageCategoriesPage() {
       }
 
       fetchCategories();
+      showModernToast('Category deleted', 'success');
     } catch (error: any) {
       console.error('Error deleting category:', error);
-      alert(error.message || 'Failed to delete category');
+      showModernToast(error.message || 'Failed to delete category', 'error');
     }
   };
 
@@ -182,9 +192,10 @@ export default function ManageCategoriesPage() {
       }
 
       fetchCategories();
+      showModernToast('Category updated', 'success');
     } catch (error: any) {
       console.error('Error toggling category:', error);
-      alert('Failed to update category');
+      showModernToast('Failed to update category', 'error');
     }
   };
 

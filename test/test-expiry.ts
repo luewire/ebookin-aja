@@ -1,5 +1,5 @@
-import { prisma } from './lib/prisma';
-import { checkAndNotifySubscriptionExpiry } from './lib/subscription';
+import { prisma } from '../lib/prisma';
+import { checkAndNotifySubscriptionExpiry } from '../lib/subscription';
 
 async function main() {
     const user = await prisma.user.findFirst({

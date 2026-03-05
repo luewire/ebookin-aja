@@ -174,6 +174,19 @@ export default function BrowsePage() {
     return matchesCategory && matchesSearch && matchesGenre && matchesPrice;
   });
 
+  const freeBooksCount = ebooks.filter((ebook) => !ebook.isPremium).length;
+  const premiumBooksCount = ebooks.filter((ebook) => !!ebook.isPremium).length;
+  const emptyStateTitle = selectedPrice === 'free'
+    ? 'Belum ada buku free'
+    : selectedPrice === 'premium'
+      ? 'Belum ada buku premium'
+      : 'No books found';
+  const emptyStateDescription = selectedPrice === 'free'
+    ? 'Koleksi buku gratis belum tersedia. Coba ganti filter untuk melihat koleksi lainnya.'
+    : selectedPrice === 'premium'
+      ? 'Koleksi buku premium belum tersedia. Coba ganti filter untuk melihat koleksi lainnya.'
+      : 'Try adjusting your filters or search query to find what you\'re looking for.';
+
   const handleBookClick = (e: React.MouseEvent, ebook: Ebook) => {
     // If book is premium and user doesn't have subscription, show pricing modal
     if (ebook.isPremium && !hasActiveSubscription()) {
@@ -303,6 +316,27 @@ export default function BrowsePage() {
             </p>
           </div>
 
+          {(freeBooksCount === 0 || premiumBooksCount === 0) && (
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {freeBooksCount === 0 && (
+                <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <p className="text-sm font-bold uppercase tracking-wider mb-1" style={{ color: '#16a34a' }}>Free Books</p>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Saat ini belum ada buku free yang tersedia untuk user.
+                  </p>
+                </div>
+              )}
+              {premiumBooksCount === 0 && (
+                <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <p className="text-sm font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>Premium Books</p>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Saat ini belum ada buku premium yang tersedia untuk user.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Search Bar */}
           <div className="mb-8">
             <div className="relative group">
@@ -380,8 +414,8 @@ export default function BrowsePage() {
               <div className="mb-6 mx-auto w-20 h-20 rounded-full flex items-center justify-center animate-float" style={{ backgroundColor: 'var(--bg-overlay)' }}>
                 <span className="text-4xl">📚</span>
               </div>
-              <h3 className="mb-3 text-2xl font-bold font-display tracking-wide" style={{ color: 'var(--text-primary)' }}>No books found</h3>
-              <p className="text-base" style={{ color: 'var(--text-secondary)' }}>Try adjusting your filters or search query to find what you're looking for.</p>
+              <h3 className="mb-3 text-2xl font-bold font-display tracking-wide" style={{ color: 'var(--text-primary)' }}>{emptyStateTitle}</h3>
+              <p className="text-base" style={{ color: 'var(--text-secondary)' }}>{emptyStateDescription}</p>
             </div>
           ) : (
             <>

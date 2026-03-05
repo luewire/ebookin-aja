@@ -47,13 +47,17 @@ interface Category {
 interface HomeClientProps {
   initialBanners: Banner[];
   initialTrendingBooks: Ebook[];
+  initialFreeBooks: Ebook[];
+  initialPremiumBooks: Ebook[];
   initialCategories: Category[];
 }
 
-export default function HomeClient({ initialBanners, initialTrendingBooks, initialCategories }: HomeClientProps) {
+export default function HomeClient({ initialBanners, initialTrendingBooks, initialFreeBooks, initialPremiumBooks, initialCategories }: HomeClientProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [trendingBooks, setTrendingBooks] = useState<Ebook[]>(initialTrendingBooks);
+  const freeBooks = initialFreeBooks;
+  const premiumBooks = initialPremiumBooks;
   const [banners, setBanners] = useState<Banner[]>(initialBanners);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 40 }, []);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -331,48 +335,83 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
           </div>
           <h3 className="text-2xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>Popular Reads</h3>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {trendingBooks.length > 0 ? trendingBooks.map((book) => (
-            <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
-              <div className="overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-                <div className="aspect-[3/4] w-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-elevated)' }}>
-                  {readingProgressMap[book.id] > 0 && (
-                    <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-lg border shadow-sm" style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderColor: 'var(--border)', backdropFilter: 'blur(4px)' }}>
-                      <p className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent-soft)' }}>
-                        {readingProgressMap[book.id]}% READ
-                      </p>
-                    </div>
-                  )}
-                  {book.coverUrl ? (
-                    <Image
-                      src={book.coverUrl}
-                      alt={`${book.title} cover`}
-                      fill
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center" style={{ color: 'var(--text-tertiary)' }}>
-                      <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    </div>
-                  )}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {trendingBooks.length > 0 ? trendingBooks.map((book, index) => (
+            <div
+              key={book.id}
+              className="group flex flex-col rounded-2xl p-4 card-hover animate-fade-in-up"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', animationDelay: `${index * 50}ms` }}
+            >
+              <div className="absolute top-6 right-6 z-10 flex flex-col gap-2 items-end">
+                {book.isPremium ? (
+                  <div className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wider text-white shadow-lg backdrop-blur-md" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, #fb7185 100%)' }}>
+                    PREMIUM
+                  </div>
+                ) : (
+                  <div className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wider text-white shadow-lg backdrop-blur-md" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)' }}>
+                    FREE
+                  </div>
+                )}
+                {readingProgressMap[book.id] > 0 && (
+                  <div className="rounded-full px-3 py-1 border shadow-lg backdrop-blur-md" style={{ backgroundColor: 'rgba(13, 13, 18, 0.75)', borderColor: 'var(--border-accent)' }}>
+                    <p className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--accent-soft)' }}>
+                      {readingProgressMap[book.id] >= 100 ? 'FINISHED' : `${readingProgressMap[book.id]}% READ`}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Link
+                href={`/ebooks/${book.id}`}
+                className="block mb-4 relative overflow-hidden rounded-xl aspect-[2/3]"
+              >
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10 duration-300" />
+                {book.coverUrl ? (
+                  <Image
+                    src={book.coverUrl}
+                    alt={`${book.title} cover`}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}>
+                    <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                )}
+              </Link>
+
+              <div className="flex-1 flex flex-col">
+                <h3 className="mb-1 text-base font-bold font-display leading-tight line-clamp-2 transition-colors group-hover:text-[var(--accent)]" style={{ color: 'var(--text-primary)' }}>
+                  {book.title}
+                </h3>
+                <p className="mb-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                  {book.author}
+                </p>
+
+                <div className="flex items-center gap-1.5 mt-auto mb-4">
+                  <svg className="h-4 w-4 fill-current" style={{ color: 'var(--accent)' }} viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {book.avgRating ? book.avgRating.toFixed(1) : '0.0'}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    ({book.ratingCount || 0})
+                  </span>
                 </div>
+
+                <Link
+                  href={`/ebooks/${book.id}`}
+                  className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 relative group/btn overflow-hidden"
+                  style={{ backgroundColor: 'var(--bg-overlay)', color: 'var(--text-primary)' }}
+                >
+                  <span className="relative z-10 transition-colors group-hover/btn:text-white">Read Now</span>
+                  <div className="absolute inset-0 block opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" style={{ backgroundColor: 'var(--accent)' }}></div>
+                </Link>
               </div>
-              <h4 className="mt-2 line-clamp-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{book.title}</h4>
-              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{book.author}</p>
-              <div className="mt-1 flex items-center gap-1">
-                <svg className="h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {book.avgRating ? book.avgRating.toFixed(1) : '0.0'}
-                </span>
-                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                  ({book.ratingCount || 0})
-                </span>
-              </div>
-            </Link>
+            </div>
           )) : (
             Array.from({ length: 6 }).map((_, i) => (
               <div key={i}>
@@ -453,6 +492,100 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
               </div>
             ))}
         </div>
+      </section>
+
+      {/* ═══ Free Books ═══ */}
+      <section className="mb-12">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-2xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>
+            <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold tracking-wider text-white" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)' }}>
+              FREE
+            </span>
+            Free Books
+          </h3>
+          <Link href="/browse" className="text-sm font-medium transition-colors" style={{ color: 'var(--accent)' }}>
+            View all free
+          </Link>
+        </div>
+        {freeBooks.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {freeBooks.map((book) => (
+              <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+                <div className="overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <div className="aspect-[3/4] w-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+                    {book.coverUrl ? (
+                      <Image
+                        src={book.coverUrl}
+                        alt={`${book.title} cover`}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center" style={{ color: 'var(--text-tertiary)' }}>
+                        <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <h4 className="mt-2 line-clamp-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{book.title}</h4>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{book.author}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Belum ada buku free tersedia saat ini.</p>
+          </div>
+        )}
+      </section>
+
+      {/* ═══ Premium Books ═══ */}
+      <section className="mb-12">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-2xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>
+            <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold tracking-wider text-white" style={{ background: 'linear-gradient(135deg, var(--accent) 0%, #fb7185 100%)' }}>
+              PREMIUM
+            </span>
+            Premium Books
+          </h3>
+          <Link href="/browse" className="text-sm font-medium transition-colors" style={{ color: 'var(--accent)' }}>
+            View all premium
+          </Link>
+        </div>
+        {premiumBooks.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {premiumBooks.map((book) => (
+              <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+                <div className="overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <div className="aspect-[3/4] w-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+                    {book.coverUrl ? (
+                      <Image
+                        src={book.coverUrl}
+                        alt={`${book.title} cover`}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center" style={{ color: 'var(--text-tertiary)' }}>
+                        <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <h4 className="mt-2 line-clamp-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{book.title}</h4>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{book.author}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Belum ada buku premium tersedia saat ini.</p>
+          </div>
+        )}
       </section>
 
       {/* ═══ Categories ═══ */}

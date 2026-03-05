@@ -53,3 +53,10 @@ next-env.d.ts
 !/public/uploads/.gitkeep
 !/public/uploads/ebooks/.gitkeep
 !/public/uploads/banners/.gitkeep
+
+# database backups — keep the directory, ignore backup data files
+/.backups/*.sql
+/.backups/*.sql.gz
+/.backups/*.json
+/.backups/*.jsonl
+!/.backups/.gitkeep

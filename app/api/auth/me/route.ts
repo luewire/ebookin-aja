@@ -31,7 +31,7 @@ async function handler(req: AuthenticatedRequest) {
         await checkAndNotifySubscriptionExpiry(user.id, subscription.endDate, subscription.planName);
       }
 
-      if (subscription.endDate && new Date(subscription.endDate) < new Date()) {
+      if (!subscription.endDate || new Date(subscription.endDate) < new Date()) {
         // Expired
         await prisma.subscription.update({
           where: { id: subscription.id },

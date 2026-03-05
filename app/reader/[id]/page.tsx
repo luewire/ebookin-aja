@@ -30,21 +30,35 @@ interface Ebook {
 export default function ReaderPage() {
     const params = useParams();
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [ebook, setEbook] = useState<Ebook | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Wait for Firebase auth to finish initializing before fetching
+        if (authLoading) return;
         if (params.id) {
             fetchEbook(params.id as string);
         }
-    }, [params.id]);
+    }, [params.id, authLoading]);
 
     const fetchEbook = async (id: string) => {
         try {
             const { auth } = await import('@/lib/firebase');
-            const token = await auth.currentUser?.getIdToken();
+
+            // Wait for Firebase auth to finish initializing (new tab race condition fix)
+            const token = await new Promise<string | null>((resolve) => {
+                const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+                    unsubscribe();
+                    if (currentUser) {
+                        const t = await currentUser.getIdToken();
+                        resolve(t);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
 
             if (!token) {
                 router.push(`/login?redirect=/reader/${id}`);
@@ -143,7 +157,16 @@ export default function ReaderPage() {
             bookUrl={ebook.pdfUrl}
             bookTitle={ebook.title}
             bookId={ebook.id}
-            onClose={() => router.back()}
+            onClose={() => {
+                // Reader opens in a new tab — close it. Fall back to ebook detail if close fails.
+                if (window.history.length <= 1) {
+                    window.close();
+                    // Fallback if window.close() is blocked by browser
+                    setTimeout(() => router.replace(`/ebooks/${params.id}`), 300);
+                } else {
+                    router.back();
+                }
+            }}
         />
     );
 }

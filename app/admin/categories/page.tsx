@@ -7,7 +7,7 @@ import { auth } from '@/lib/firebase';
 import { showModernConfirm, showModernToast } from '@/lib/modern-feedback';
 
 interface Category {
-  id: string;
+  id: number;
   name: string;
   slug: string;
   isActive: boolean;
@@ -134,7 +134,7 @@ export default function ManageCategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string, ebookCount: number) => {
+  const handleDelete = async (id: number, ebookCount: number) => {
     if (ebookCount > 0) {
       showModernToast(`Cannot delete category with ${ebookCount} associated ebook(s). Please reassign or delete the ebooks first.`, 'error');
       return;

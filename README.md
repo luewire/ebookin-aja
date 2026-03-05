@@ -66,6 +66,48 @@ Project ebookin-aja-main adalah platform ebook digital dengan berbagai fitur len
    npm run dev
    ```
 
+### Konfigurasi Production
+
+Tambahkan environment variable berikut saat deploy production:
+
+```env
+NODE_ENV=production
+DEBUG=false
+LOG_LEVEL=warn
+
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=120
+
+CACHE_ENABLED=true
+PUBLIC_API_CACHE_MAX_AGE=60
+PUBLIC_API_CACHE_S_MAX_AGE=300
+PUBLIC_API_CACHE_STALE=600
+
+# Optional: base path untuk runtime folder check
+RUNTIME_BASE_DIR=/var/www/ebookin-aja
+```
+
+Keterangan singkat:
+- `DEBUG=false`: mematikan debug behavior di runtime config.
+- `LOG_LEVEL=warn`: log hanya `warn` dan `error` (lebih aman untuk production).
+- `RATE_LIMIT_*`: mengaktifkan throttling request API di middleware.
+- `CACHE_*`: mengaktifkan caching header untuk endpoint publik (`/api/ebooks`, `/api/categories`, `/api/banners`).
+- `RUNTIME_BASE_DIR`: lokasi root folder runtime (`storage`, `logs`, `uploads`, `tmp`).
+
+### Permission & File Path Check
+
+Saat `npm run start`, server akan otomatis:
+- memastikan folder `storage`, `logs`, `uploads`, `tmp` ada,
+- memastikan semua folder tersebut writable,
+- fail-fast jika ada permission/path yang salah.
+
+Jalankan manual jika perlu:
+
+```bash
+npm run check-runtime-paths
+```
+
 ---
 
 ## Kontribusi

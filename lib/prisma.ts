@@ -1,4 +1,23 @@
 import { PrismaClient } from '@prisma/client';
+import { runtimeConfig } from '@/lib/runtime-config';
+
+const prismaLogLevels = (() => {
+  const level = runtimeConfig.logLevel.toLowerCase();
+
+  if (runtimeConfig.debug || level === 'debug') {
+    return ['query', 'info', 'warn', 'error'] as const;
+  }
+
+  if (level === 'info') {
+    return ['info', 'warn', 'error'] as const;
+  }
+
+  if (level === 'warn') {
+    return ['warn', 'error'] as const;
+  }
+
+  return ['error'] as const;
+})();
 
 declare global {
   // allow global `var` declarations
@@ -9,7 +28,7 @@ declare global {
 export const prisma =
   global.prisma ||
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: prismaLogLevels,
   });
 
 if (process.env.NODE_ENV !== 'production') {

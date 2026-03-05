@@ -321,6 +321,13 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
             doc.body?.style.setProperty('font-family', `"${fontFamily}", serif`, 'important');
             doc.body?.style.setProperty('line-height', '1.75', 'important');
 
+            const styledElements = (doc as Document).querySelectorAll('[style]');
+            styledElements.forEach((element) => {
+                const htmlElement = element as HTMLElement;
+                htmlElement.style.setProperty('color', colors.text, 'important');
+                htmlElement.style.setProperty('-webkit-text-fill-color', colors.text, 'important');
+            });
+
             const existingStyle = doc.getElementById('dynamic-book-styles') as HTMLStyleElement | null;
             const styleElement = existingStyle ?? doc.createElement('style');
             if (!existingStyle) {
@@ -728,6 +735,11 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
     const fontFamilies = ['Georgia', 'Arial', 'Times New Roman', 'Verdana'];
     const pagesRemaining = Math.max(0, totalPages - currentPage);
     const showLastReadButton = !!lastReadLocation && (lastReadProgress - progress >= 2);
+    const fontSettingsButtonClass = theme === 'sepia'
+        ? (showFontSettings ? 'text-[var(--accent)] bg-[#E4CEAF] scale-105' : 'hover:bg-[#E4CEAF]')
+        : theme === 'dark'
+            ? (showFontSettings ? 'text-[var(--accent)] bg-[rgba(255,255,255,0.1)] scale-105' : 'hover:bg-[rgba(255,255,255,0.08)]')
+            : (showFontSettings ? 'text-[var(--accent)] bg-[#EEF2F7] scale-105' : 'hover:bg-[#F3F4F6]');
 
     return (
         <div className={`fixed inset-0 z-50 flex flex-col ${theme === 'sepia' ? 'bg-[#F5E6D3]' : theme === 'dark' ? 'bg-[#0D0D12]' : 'bg-white'
@@ -820,7 +832,7 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                     <div className="relative">
                         <button
                             onClick={() => { setShowFontSettings(!showFontSettings); setShowTOC(false); setShowBookmarks(false); setShowAnnotationsList(false); }}
-                            className={`p-1.5 md:p-2 rounded-xl transition-all ${showFontSettings ? 'text-[var(--accent)] bg-[rgba(0,0,0,0.05)] scale-105' : 'hover:bg-[rgba(0,0,0,0.05)]'}`}
+                            className={`p-1.5 md:p-2 rounded-xl transition-all ${fontSettingsButtonClass}`}
                             title="Font Settings"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -876,7 +888,17 @@ export default function EpubReader({ bookUrl, bookTitle, bookId, onClose }: Epub
                                                 }`}
                                         >
                                             {fontFamilies.map((font) => (
-                                                <option key={font} value={font} className="font-medium">{font}</option>
+                                                <option
+                                                    key={font}
+                                                    value={font}
+                                                    className="font-medium"
+                                                    style={{
+                                                        backgroundColor: theme === 'sepia' ? '#EDD9C0' : theme === 'dark' ? '#1E1E28' : '#F9FAFB',
+                                                        color: theme === 'sepia' ? '#5C4033' : theme === 'dark' ? '#F0EEF6' : '#1F2937'
+                                                    }}
+                                                >
+                                                    {font}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>

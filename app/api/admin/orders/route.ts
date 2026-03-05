@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
             where: { firebaseUid: decodedToken.uid }
         });
 
-        if (!adminUser || (adminUser.role !== 'ADMIN' && adminUser.email !== 'admin@admin.com')) {
+        const normalizedRole = String(adminUser?.role || '').toUpperCase();
+        const isAdmin = normalizedRole === 'ADMIN' || adminUser?.email === 'admin@admin.com';
+
+        if (!isAdmin) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

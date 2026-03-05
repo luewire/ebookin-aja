@@ -44,7 +44,6 @@ export default function UserProfilePage() {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [followLoading, setFollowLoading] = useState(false);
     const [followError, setFollowError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'completed' | 'wantToRead'>('all');
 
@@ -94,6 +93,24 @@ export default function UserProfilePage() {
         }
     }, [username, currentUser]);
 
+    const syncProfileSilently = async () => {
+        if (!username || username === 'undefined') return;
+
+        try {
+            const token = await currentUser?.getIdToken();
+            const response = await fetch(`/api/users/${username}/profile`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setProfile(data);
+            }
+        } catch (error) {
+            console.error('Silent profile sync error:', error);
+        }
+    };
+
     const handleToggleFollow = async () => {
         if (!currentUser) {
             router.push('/login');
@@ -102,8 +119,27 @@ export default function UserProfilePage() {
 
         if (!profile) return;
 
-        setFollowLoading(true);
         setFollowError(null);
+
+        const prevProfile = profile;
+        const optimisticIsFollowing = !prevProfile.isFollowing;
+        const optimisticFollowers = optimisticIsFollowing
+            ? prevProfile.stats.followers + 1
+            : Math.max(0, prevProfile.stats.followers - 1);
+
+        setProfile((prev) =>
+            prev
+                ? {
+                    ...prev,
+                    isFollowing: optimisticIsFollowing,
+                    isMutual: optimisticIsFollowing ? prev.isFollower : false,
+                    stats: {
+                        ...prev.stats,
+                        followers: optimisticFollowers,
+                    },
+                }
+                : null
+        );
 
         try {
             const token = await currentUser.getIdToken();
@@ -127,23 +163,19 @@ export default function UserProfilePage() {
                     prev ? {
                         ...prev,
                         isFollowing,
-                        isMutual,
-                        stats: {
-                            ...prev.stats,
-                            followers: isFollowing
-                                ? (prev.isFollowing ? prev.stats.followers : prev.stats.followers + 1)
-                                : (prev.isFollowing ? prev.stats.followers - 1 : prev.stats.followers)
-                        }
+                        isMutual
                     } : null
                 );
+
+                syncProfileSilently();
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 setFollowError(errorData.error || 'Failed to update follow status');
+                setProfile(prevProfile);
             }
         } catch (error: any) {
             setFollowError('An unexpected error occurred');
-        } finally {
-            setFollowLoading(false);
+            setProfile(prevProfile);
         }
     };
 
@@ -327,8 +359,7 @@ export default function UserProfilePage() {
                                     ) : (
                                         <button
                                             onClick={handleToggleFollow}
-                                            disabled={followLoading}
-                                            className="px-8 py-2 rounded-xl text-sm font-bold transition-all duration-300 shadow-lg hover:scale-105 disabled:opacity-50"
+                                            className="px-8 py-2 rounded-xl text-sm font-bold transition-all duration-300 shadow-lg hover:scale-105"
                                             style={profile.isFollowing ? {
                                                 backgroundColor: 'var(--bg-elevated)',
                                                 border: '1px solid var(--border)',
@@ -339,9 +370,7 @@ export default function UserProfilePage() {
                                                 boxShadow: '0 10px 20px -5px var(--accent-glow)'
                                             }}
                                         >
-                                            {followLoading ? (
-                                                <div className="h-4 w-4 animate-spin border-2 border-t-transparent rounded-full mx-auto" style={{ borderColor: 'currentColor transparent currentColor transparent' }}></div>
-                                            ) : profile.isFollowing ? (
+                                            {profile.isFollowing ? (
                                                 profile.isMutual ? 'Mutual' : 'Following'
                                             ) : (
                                                 'Follow'

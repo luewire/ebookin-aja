@@ -209,9 +209,20 @@ export default function EbookDetailPage() {
 
   const fetchEbook = async (id: string) => {
     try {
-      // Get Firebase auth token
+      // Wait for Firebase auth to initialize before checking login state.
+      // Opening in a new tab means auth.currentUser may be null briefly.
       const { auth } = await import('@/lib/firebase');
-      const token = await auth.currentUser?.getIdToken();
+      const token = await new Promise<string | null>((resolve) => {
+        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+          unsubscribe();
+          if (currentUser) {
+            const t = await currentUser.getIdToken();
+            resolve(t);
+          } else {
+            resolve(null);
+          }
+        });
+      });
 
       if (!token) {
         // If not authenticated, redirect to login
@@ -295,15 +306,15 @@ export default function EbookDetailPage() {
     });
 
     const isFreeBook = ebook.isPremium === false;
+    const normalizedRole = String(user?.role || '').toUpperCase();
+    const isAdmin = normalizedRole === 'ADMIN' || user?.email === 'admin@admin.com';
 
     // Check if user has subscription, is Admin, or the book is free
-    if (isFreeBook || user?.role === 'Admin' || currentHasSub || user?.plan === 'Premium') {
-      // User has access, go to reader
-      router.push(`/reader/${ebook.id}`);
+    if (isFreeBook || isAdmin || currentHasSub) {
+      // User has access — open reader in new tab
+      window.open(`/reader/${ebook.id}`, '_blank', 'noopener,noreferrer');
     } else {
       // User needs subscription, show pricing modal
-
-      // User needs subscription, showing modal
       setShowPricingModal(true);
     }
   };

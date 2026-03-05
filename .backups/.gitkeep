@@ -1,0 +1,3 @@
+# This file keeps the .backups directory tracked by git.
+# The actual backup files (*.sql, *.json, *.jsonl) are excluded via .gitignore.
+# This directory is used by: db-backup.js, db-restore.js, pre-deploy.js, rollback.js

@@ -132,10 +132,11 @@ export function withAdmin(
       // Then check admin role
       // Allow if role is ADMIN OR if email is admin@admin.com (fallback)
       // OR if the token claims say ADMIN
-      const tokenRole = authReq.decodedToken?.role;
-      const isAdminByDb = authReq.user?.role === 'ADMIN';
+      const tokenRole = String(authReq.decodedToken?.role || '').toUpperCase();
+      const userRole = String(authReq.user?.role || '').toUpperCase();
+      const isAdminByDb = userRole === 'ADMIN';
       const isAdminByEmail = authReq.user?.email === 'admin@admin.com';
-      const isAdminByToken = tokenRole === 'ADMIN' || tokenRole === 'Admin';
+      const isAdminByToken = tokenRole === 'ADMIN';
       
       if (!isAdminByDb && !isAdminByEmail && !isAdminByToken) {
         return NextResponse.json(

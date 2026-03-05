@@ -92,8 +92,13 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
     // Always check for notifications as side effect
     await checkAndNotifySubscriptionExpiry(userId, subscription.endDate, subscription.planName);
 
+    // No end date means we cannot safely grant premium access
+    if (!subscription.endDate) {
+      return false;
+    }
+
     // Check if subscription has expired
-    if (subscription.endDate && new Date() > subscription.endDate) {
+    if (new Date() > subscription.endDate) {
       // Auto-expire the subscription
       await prisma.subscription.update({
         where: { userId },
@@ -133,9 +138,9 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionI
       await checkAndNotifySubscriptionExpiry(userId, subscription.endDate, subscription.planName);
     }
 
-    // Check and update if expired
+    // Check and update if expired (must have endDate to be considered active)
     const isActive = (subscription.status === 'ACTIVE' || subscription.status === 'CANCELLED') &&
-      (!subscription.endDate || new Date() <= subscription.endDate);
+      !!subscription.endDate && new Date() <= subscription.endDate;
 
     if (!isActive && subscription.status === 'ACTIVE') {
       await prisma.subscription.update({

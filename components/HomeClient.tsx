@@ -290,9 +290,9 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
               View all activity
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {continueReading.map((book) => (
-              <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+              <Link key={book.id} href={`/ebooks/${book.id}`} className="group flex-shrink-0 w-36 sm:w-auto">
                 <div className="relative overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                   <div className="absolute right-2 top-2 z-10 rounded-lg px-2 py-1 text-xs font-semibold backdrop-blur" style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: 'var(--accent-soft)' }}>
                     {Math.round(book.progress)}% READ
@@ -335,11 +335,11 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
           </div>
           <h3 className="text-2xl font-bold font-display" style={{ color: 'var(--text-primary)' }}>Popular Reads</h3>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="flex gap-6 overflow-x-auto scrollbar-hide sm:grid sm:grid-cols-2 lg:grid-cols-4 mb-12">
           {trendingBooks.length > 0 ? trendingBooks.map((book, index) => (
             <div
               key={book.id}
-              className="group flex flex-col rounded-2xl p-4 card-hover animate-fade-in-up"
+              className="group flex flex-col rounded-2xl p-4 card-hover animate-fade-in-up flex-shrink-0 w-44 sm:w-auto"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', animationDelay: `${index * 50}ms` }}
             >
               <div className="absolute top-6 right-6 z-10 flex flex-col gap-2 items-end">
@@ -440,7 +440,7 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
               : 'Popular books you might like'}
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
           {loadingRecommendations
             ? Array.from({ length: 6 }).map((_, index) => (
               <div key={`loading-rec-${index}`} className="flex gap-4 rounded-xl p-4" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
@@ -508,9 +508,9 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
           </Link>
         </div>
         {freeBooks.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {freeBooks.map((book) => (
-              <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+              <Link key={book.id} href={`/ebooks/${book.id}`} className="group flex-shrink-0 w-36 sm:w-auto">
                 <div className="overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                   <div className="aspect-[3/4] w-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-elevated)' }}>
                     {book.coverUrl ? (
@@ -555,9 +555,9 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
           </Link>
         </div>
         {premiumBooks.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="flex gap-4 overflow-x-auto scrollbar-hide sm:grid sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {premiumBooks.map((book) => (
-              <Link key={book.id} href={`/ebooks/${book.id}`} className="group">
+              <Link key={book.id} href={`/ebooks/${book.id}`} className="group flex-shrink-0 w-36 sm:w-auto">
                 <div className="overflow-hidden rounded-xl card-hover" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
                   <div className="aspect-[3/4] w-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-elevated)' }}>
                     {book.coverUrl ? (
@@ -601,7 +601,7 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
             View all categories
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="flex gap-4 overflow-x-auto scrollbar-hide sm:grid sm:grid-cols-3 lg:grid-cols-4">
           {categories.map((category, index) => {
             const icons = ['✨', '🔬', '🏛️', '🔍', '👑', '👤', '🧠'];
             return (
@@ -609,7 +609,7 @@ export default function HomeClient({ initialBanners, initialTrendingBooks, initi
                 key={category.id}
                 href={`/browse?category=${encodeURIComponent(category.name)}`}
                 aria-label={`Browse items in category: ${category.name}`}
-                className="flex flex-col items-center justify-center gap-3 rounded-xl p-6 text-center transition-all duration-300 card-hover"
+                className="flex flex-col items-center justify-center gap-3 rounded-xl p-6 text-center transition-all duration-300 card-hover flex-shrink-0 w-32 sm:w-auto"
                 style={{
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border)',

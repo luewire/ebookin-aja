@@ -554,3 +554,13 @@ a {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Scrollbar Hide (alias for horizontal scroll sections) ─── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

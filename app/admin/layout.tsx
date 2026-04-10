@@ -39,9 +39,15 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
         return;
       }
 
-      // Check for ADMIN custom claim logic
+      // Check DB role from AuthProvider context (populated from /api/auth/me)
+      if (user.role === 'ADMIN' || user.role === 'Admin') {
+        setIsAuthorized(true);
+        setCheckingAuth(false);
+        return;
+      }
+
+      // Fallback: check Firebase custom claims (force token refresh)
       try {
-        // Force token refresh to get latest claims
         const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult.claims.role;
 

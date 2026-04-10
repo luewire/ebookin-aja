@@ -40,7 +40,7 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
       }
 
       // Check DB role from AuthProvider context (populated from /api/auth/me)
-      if (user.role === 'ADMIN' || user.role === 'Admin') {
+      if (String(user.role || '').toUpperCase() === 'ADMIN') {
         setIsAuthorized(true);
         setCheckingAuth(false);
         return;
@@ -51,7 +51,7 @@ export default function AdminLayoutWrapper({ children }: { children: React.React
         const tokenResult = await user.getIdTokenResult(true);
         const role = tokenResult.claims.role;
 
-        if (role === 'ADMIN' || role === 'Admin') {
+        if (String(role || '').toUpperCase() === 'ADMIN') {
           setIsAuthorized(true);
         } else {
           console.log('User role not authorized:', role);
